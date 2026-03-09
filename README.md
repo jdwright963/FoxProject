@@ -38,8 +38,11 @@ Because the binary assets (meshes, maps, materials) are managed via **Diversion*
 
 ---
 
-## 📬 Contact
-**John Wright**  
-[jdwright963@gmail.com]
-[LinkedIn]([http://www.linkedin.com/in/john-w-7b6a3a396/])
-[Portfolio Site]([jdwright963.github.io])
+
+## 📮 Contact
+
+**John Wright**
+
+*   **Email:** [jdwright963@gmail.com](mailto:jdwright963@gmail.com)
+*   **LinkedIn:** [www.linkedin.com/in/john-w-7b6a3a396/](https://www.linkedin.com/in/john-w-7b6a3a396/)
+*   **Portfolio:** [jdwright963.github.io](https://jdwright963.github.io)
