@@ -208,6 +208,14 @@ FDamageEffectParams UFoxDamageGameplayAbility::MakeDamageEffectParamsFromClassDe
 	return Params;
 }
 
+float UFoxDamageGameplayAbility::GetDamageAtLevel() const
+{
+	// Return the scaled damage value by evaluating the Damage FScalableFloat at the ability's current level
+	// This retrieves the damage magnitude after applying any curve table calculations for level-based scaling
+	// Used by external systems that need to query this ability's damage output without applying effects
+	return Damage.GetValueAtLevel(GetAbilityLevel());
+}
+
 FTaggedMontage UFoxDamageGameplayAbility::GetRandomTaggedMontageFromArray(
 	const TArray<FTaggedMontage>& TaggedMontages) const
 {

@@ -203,7 +203,9 @@ void UFoxBeamSpell::StoreAdditionalTargets(TArray<AActor*>& OutAdditionalTargets
 	// Formula: (AbilityLevel - 1) means at level 1 we get 0 additional targets, level 2 gets 1, level 3 gets 2, etc.
 	// This creates natural ability scaling where higher level abilities can hit more targets simultaneously
 	// Example: Level 3 ability = Min(3-1, 5) = 2 additional targets; Level 7 ability = Min(7-1, 5) = 5 additional targets
-	int32 NumAdditionalTargets = FMath::Min(GetAbilityLevel() - 1, MaxNumShockTargets);
+	//int32 NumAdditionalTargets = FMath::Min(GetAbilityLevel() - 1, MaxNumShockTargets);
+	
+	int32 NumAdditionTargets = 5;
 
 	// Select the closest NumAdditionalTargets actors from the OverlappingActors pool and store them in OutAdditionalTargets
 	// Parameters:
@@ -212,5 +214,5 @@ void UFoxBeamSpell::StoreAdditionalTargets(TArray<AActor*>& OutAdditionalTargets
 	//   - OutAdditionalTargets: Output array that will contain the final list of additional beam targets, sorted by proximity
 	//   - MouseHitActor->GetActorLocation(): Reference point for distance calculations (primary target's position)
 	// If there are fewer actors in OverlappingActors than NumAdditionalTargets, all available actors will be selected
-	UFoxAbilitySystemLibrary::GetClosestTargets(NumAdditionalTargets, OverlappingActors, OutAdditionalTargets, MouseHitActor->GetActorLocation());
+	UFoxAbilitySystemLibrary::GetClosestTargets(NumAdditionTargets, OverlappingActors, OutAdditionalTargets, MouseHitActor->GetActorLocation());
 }
