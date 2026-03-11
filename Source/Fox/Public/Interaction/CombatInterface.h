@@ -21,7 +21,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnASCRegistered, UAbilitySystemComponent*)
 // Takes one parameter: AActor* DeadActor which represents the actor that has died.
 // Dynamic delegates are slower than native delegates but can be serialized and used in Blueprints.
 // This is used to notify when a character dies so listeners (like DebuffNiagaraComponent) can respond appropriately.
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeath, AActor*, DeadActor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeathSignature, AActor*, DeadActor);
 
 // USTRUCT macro declares this as an Unreal struct that can be used in Blueprints (BlueprintType specifier allows it)
 // Declares a struct named FTaggedMontage following Unreal's naming convention where structs start with 'F'
@@ -160,7 +160,7 @@ public:
 	virtual FOnASCRegistered& GetOnASCRegisteredDelegate() = 0;
 
 	/** 
-	 * Pure virtual function that returns a reference to the FOnDeath dynamic multicast delegate. This delegate is
+	 * Pure virtual function that returns a reference to the FOnDeathSignature dynamic multicast delegate. This delegate is
 	 * broadcast when the character dies, allowing listeners (like DebuffNiagaraComponent) to respond to death events
 	 * by performing cleanup or state changes (e.g., deactivating visual effects). The = 0 syntax makes this a pure
 	 * virtual function requiring implementation in derived classes. Marked as virtual (not BlueprintNativeEvent) for
@@ -176,7 +176,7 @@ public:
 	 * implements the interface. It ensures architectural separation where high-level logic depends 
 	 * on abstractions rather than specific implementations, keeping the codebase flexible and maintainable.
 	*/
-	virtual FOnDeath& GetOnDeathDelegate() = 0;
+	virtual FOnDeathSignature& GetOnDeathDelegate() = 0;
 	
 	// Function we implement in BP_FoxCharacter. This function sets the value of the InShockLoop variable there, which 
 	// indicates whether the Electrocute ability is active, since this is an ability that is active as long as the input

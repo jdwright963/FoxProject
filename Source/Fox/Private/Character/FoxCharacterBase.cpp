@@ -146,18 +146,19 @@ void AFoxCharacterBase::MulticastHandleDeath_Implementation(const FVector& Death
 	
 	// Set the member variable to indicate that the character is dead
 	bDead = true;
-	
-	// Broadcasts the OnDeath multicast delegate, notifying all registered listeners that this character has died by 
-	// passing 'this' as the dead actor parameter. Listeners can include UI widgets that need to update death counts, 
-	// AI controllers that need to select new targets, quest systems tracking enemy kills, debuff components that need 
-	// to deactivate visual effects, or any other system that needs to respond to character death events
-	OnDeath.Broadcast(this);
 
 	// Manually deactivates the burn debuff Niagara component, immediately stopping the burn particle effect on the 
 	// character's body. While the component has its own callback registered to deactivate when the Debuff_Burn tag is 
 	// removed from the ASC, explicitly calling Deactivate here ensures the visual effect stops instantly on death 
 	// regardless of tag state, preventing burn particles from continuing to play on the ragdolled corpse
 	BurnDebuffComponent->Deactivate();
+	
+	// Broadcasts the OnDeathDelegate multicast delegate, notifying all registered listeners that this character has died by 
+	// passing 'this' as the dead actor parameter. Listeners can include UI widgets that need to update death counts, 
+	// AI controllers that need to select new targets, quest systems tracking enemy kills, debuff components that need 
+	// to deactivate visual effects, the electrocute ability to stop since it is an ability that is active as long as the
+	// user holds down the input and we want it to stop when the target dies), or any other system that needs to respond to character death events
+	OnDeathDelegate.Broadcast(this);
 }
 
 void AFoxCharacterBase::BeginPlay()
@@ -301,13 +302,13 @@ FOnASCRegistered& AFoxCharacterBase::GetOnASCRegisteredDelegate()
 	return OnAscRegistered;
 }
 
-FOnDeath& AFoxCharacterBase::GetOnDeathDelegate()
+FOnDeathSignature& AFoxCharacterBase::GetOnDeathDelegate()
 {
-	// Returns a reference to the OnDeath multicast delegate, which allows external systems (such as DebuffNiagaraComponent, 
+	// Returns a reference to the OnDeathDelegate multicast delegate, which allows external systems (such as DebuffNiagaraComponent, 
 	// UI widgets, AI controllers, or quest systems) to register callbacks that will be invoked when this character dies. 
 	// This delegate is broadcast in MulticastHandleDeath_Implementation() with the dying actor as a parameter, enabling 
 	// any registered listeners to respond appropriately to the character's death event
-	return OnDeath;
+	return OnDeathDelegate;
 }
 
 USkeletalMeshComponent* AFoxCharacterBase::GetWeapon_Implementation()

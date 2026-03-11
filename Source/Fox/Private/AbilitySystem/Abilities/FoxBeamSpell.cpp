@@ -163,6 +163,22 @@ void UFoxBeamSpell::TraceFirstTarget(const FVector& BeamTargetLocation)
 			}
 		}
 	}
+	// Attempt to cast the primary beam target (MouseHitActor) to the ICombatInterface to access combat-related functionality
+	// The combat interface is required to access the OnDeathDelegate, which allows us to respond when this target dies during the beam
+	if (ICombatInterface* CombatInterface = Cast<ICombatInterface>(MouseHitActor))
+	{
+		// Check if our PrimaryTargetDied callback is already bound to this target's death delegate to prevent duplicate bindings
+		// IsAlreadyBound returns true if the function &UFoxBeamSpell::PrimaryTargetDied on this specific object (this) is 
+		// already bound to the target's OnDeathDelegate
+		// Without this check, we could bind the same callback multiple times, causing PrimaryTargetDied to be called repeatedly on death
+		if (!CombatInterface->GetOnDeathDelegate().IsAlreadyBound(this, &UFoxBeamSpell::PrimaryTargetDied))
+		{
+			// Bind the PrimaryTargetDied callback function to the target's death delegate so it is called when the primary target dies
+			// AddDynamic is a macro that safely binds a UFUNCTION to a dynamic multicast delegate with proper reflection support
+			// When this target dies, PrimaryTargetDied will be called, allowing us to handle beam interruption or retargeting logic
+			CombatInterface->GetOnDeathDelegate().AddDynamic(this, &UFoxBeamSpell::PrimaryTargetDied);
+		}
+	}
 }
 
 void UFoxBeamSpell::StoreAdditionalTargets(TArray<AActor*>& OutAdditionalTargets)
@@ -203,9 +219,9 @@ void UFoxBeamSpell::StoreAdditionalTargets(TArray<AActor*>& OutAdditionalTargets
 	// Formula: (AbilityLevel - 1) means at level 1 we get 0 additional targets, level 2 gets 1, level 3 gets 2, etc.
 	// This creates natural ability scaling where higher level abilities can hit more targets simultaneously
 	// Example: Level 3 ability = Min(3-1, 5) = 2 additional targets; Level 7 ability = Min(7-1, 5) = 5 additional targets
-	//int32 NumAdditionalTargets = FMath::Min(GetAbilityLevel() - 1, MaxNumShockTargets);
+	int32 NumAdditionalTargets = FMath::Min(GetAbilityLevel() - 1, MaxNumShockTargets);
 	
-	int32 NumAdditionTargets = 5;
+	//int32 NumAdditionTargets = 5;
 
 	// Select the closest NumAdditionalTargets actors from the OverlappingActors pool and store them in OutAdditionalTargets
 	// Parameters:
@@ -214,5 +230,29 @@ void UFoxBeamSpell::StoreAdditionalTargets(TArray<AActor*>& OutAdditionalTargets
 	//   - OutAdditionalTargets: Output array that will contain the final list of additional beam targets, sorted by proximity
 	//   - MouseHitActor->GetActorLocation(): Reference point for distance calculations (primary target's position)
 	// If there are fewer actors in OverlappingActors than NumAdditionalTargets, all available actors will be selected
-	UFoxAbilitySystemLibrary::GetClosestTargets(NumAdditionTargets, OverlappingActors, OutAdditionalTargets, MouseHitActor->GetActorLocation());
+	UFoxAbilitySystemLibrary::GetClosestTargets(
+		NumAdditionalTargets,
+		OverlappingActors,
+		OutAdditionalTargets,
+		MouseHitActor->GetActorLocation());
+	
+	// Iterate through all additional beam targets found by the proximity search
+	for (AActor* Target : OutAdditionalTargets)
+	{
+		// Attempt to cast the current additional target in the loop to ICombatInterface to access combat-related functionality
+		// The combat interface is required to access the OnDeathDelegate for responding to target death events
+		if (ICombatInterface* CombatInterface = Cast<ICombatInterface>(Target))
+		{
+			// Check if our AdditionalTargetDied callback is already bound to this target's death delegate to prevent duplicate bindings
+			// IsAlreadyBound returns true if the function &UFoxBeamSpell::AdditionalTargetDied on this specific object (this) is 
+			// already bound to the target's OnDeathDelegate, preventing multiple callbacks for the same target death
+			if (!CombatInterface->GetOnDeathDelegate().IsAlreadyBound(this, &UFoxBeamSpell::AdditionalTargetDied))
+			{
+				// Bind the AdditionalTargetDied callback function to this target's OnDeathDelegate so it is called when the target dies
+				// AddDynamic is a macro that safely binds a UFUNCTION to a dynamic multicast delegate with proper reflection support
+				// When any additional target dies during the beam, AdditionalTargetDied will be called to handle beam cancellation, retargeting, or visual updates
+				CombatInterface->GetOnDeathDelegate().AddDynamic(this, &UFoxBeamSpell::AdditionalTargetDied);
+			}
+		}
+	}
 }

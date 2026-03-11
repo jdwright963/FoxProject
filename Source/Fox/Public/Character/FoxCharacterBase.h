@@ -111,10 +111,10 @@ public:
 	// the ASC is available (e.g., on enemies where ASC initialization happens in BeginPlay).
 	virtual FOnASCRegistered& GetOnASCRegisteredDelegate() override;
 
-	// Overrided function from CombatInterface that returns a reference to the OnDeath delegate, allowing external systems
+	// Overrided function from CombatInterface that returns a reference to the FOnDeathSignature delegate, allowing external systems
 	// (like UDebuffNiagaraComponent) to bind callbacks that execute when this character dies. This enables other components
 	// and systems to respond to death events (e.g., deactivating particle effects, playing sounds, updating UI).
-	virtual FOnDeath& GetOnDeathDelegate() override;
+	virtual FOnDeathSignature& GetOnDeathDelegate() override;
 	
 	// Overrided function from CombatInterface that returns the character's weapon skeletal mesh component. This provides
 	// external systems access to the weapon mesh for various purposes such as retrieving socket locations for projectile
@@ -136,7 +136,7 @@ public:
 	// (e.g., UDebuffNiagaraComponent deactivates particle effects, UI systems update death counts, etc.).
 	// The delegate passes the dead actor as a parameter to provide context to bound callbacks.
 	// This delegate type is inherited from CombatInterface
-	FOnDeath OnDeath;
+	FOnDeathSignature OnDeathDelegate;
 	
 	// Multicast RPC (called on the server and executed on the server and every client currently connected to the game)
 	// that handles what happens on all clients when the character dies. Takes a DeathImpulse parameter which is a vector representing

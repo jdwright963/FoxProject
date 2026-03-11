@@ -60,6 +60,29 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable)
 	void StoreAdditionalTargets(TArray<AActor*>& OutAdditionalTargets);
+	
+	/**
+	 * Blueprint implementable event called when the primary target of the beam spell dies.
+	 * This allows Blueprint logic to respond to the primary target's death, such as updating
+	 * the beam visual effects, retargeting, or canceling the ability. There is no implementation for 
+	 * this function here in C++ only in Blueprint
+	 * 
+	 * @param DeadActor The primary target actor that has died
+	 */
+	UFUNCTION(BlueprintImplementableEvent)
+	void PrimaryTargetDied(AActor* DeadActor);
+
+	/**
+	 * Blueprint implementable event called when an additional target of the beam spell dies during beam propagation.
+	 * This allows Blueprint logic to respond to secondary target deaths, such as updating
+	 * chain lightning effects or removing that target from the propagation chain. There is no implementation for 
+	 * this function here in C++ only in Blueprint
+	 * 
+	 * @param DeadActor The additional target actor that has died
+	 */
+	UFUNCTION(BlueprintImplementableEvent)
+	void AdditionalTargetDied(AActor* DeadActor);
+	
 protected:
 
 	/** The world location where the mouse cursor trace hit a blocking object, used as the target location for the beam spell */
