@@ -59,9 +59,18 @@ public:
 	// Sets default values for this character's properties
 	AFoxCharacterBase();
 	
+	// Overridden from AActor to specify which properties should be replicated across the network.
+	// This function is called by the engine's replication system to register which variables should be replicated
+	// between the server and clients. In this class, we register bIsStunned and bIsBurned for replication, ensuring
+	// that when these debuff states change on the server, clients are automatically notified and can respond with
+	// appropriate visual/audio feedback through their OnRep callbacks (OnRep_Stunned and OnRep_Burned).
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;
+	
 	// This function must be overridden to implement IAbilitySystemInterface. The getter for the attribute set
 	// was made for convenience.
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	
+	// Function that returns the character's attribute set
 	UAttributeSet* GetAttributeSet() const { return AttributeSet; };
 	
 	/** Combat Interface */
@@ -151,6 +160,41 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	TArray<FTaggedMontage> AttackMontages;
 	
+	// Replicated boolean that tracks whether this character is currently stunned. When the stun debuff is applied,
+	// this variable is set to true on the server and automatically replicated to all clients, calling the
+	// OnRep_Stunned() callback on each client. When the stun debuff is removed, it's set to false and replicated
+	// again. This allows clients to respond to stun state changes (e.g., activating particle effects, disabling movement, 
+	// playing animations, updating UI). The ReplicatedUsing specifier ensures OnRep_Stunned() is called on clients whenever this value changes.
+	UPROPERTY(ReplicatedUsing=OnRep_Stunned, BlueprintReadOnly)
+	bool bIsStunned = false;
+
+	// Replicated boolean that tracks whether this character is currently burning. When the burn debuff is applied,
+	// this variable is set to true on the server and automatically replicated to all clients, calling the
+	// OnRep_Burned() callback on each client. When the burn debuff is removed, it's set to false and replicated
+	// again. This allows clients to respond to burn state changes (e.g., activating particle effects via
+	// BurnDebuffComponent, playing sound effects, updating UI). The ReplicatedUsing specifier ensures OnRep_Burned()
+	// is called on clients whenever this value changes.
+	UPROPERTY(ReplicatedUsing=OnRep_Burned, BlueprintReadOnly)
+	bool bIsBurned = false;
+
+	// Replication notification callback that executes on clients when the bIsStunned variable changes on the server.
+	// This function is automatically called by the replication system after bIsStunned has been updated on the client,
+	// allowing the client to respond to stun state changes. Typically used to update visual feedback (animations,
+	// particle effects) or gameplay state (movement restrictions) when a character becomes stunned or recovers from stun.
+	// Virtual to allow child classes (like AFoxEnemy) to override and add specific stun response behavior. There is no
+	// implementation for this function in this class, but child classes can override it to provide custom stun handling.
+	UFUNCTION()
+	virtual void OnRep_Stunned();
+
+	// Replication notification callback that executes on clients when the bIsBurned variable changes on the server.
+	// This function is automatically called by the replication system after bIsBurned has been updated on the client,
+	// allowing the client to respond to burn state changes. Typically used to activate/deactivate burn particle effects
+	// (via BurnDebuffComponent), play burn-related sounds, or update UI elements when a character starts or stops burning.
+	// Virtual to allow child classes to override and add specific burn response behavior. There is no implementation for this
+	// function in this class, but child classes can override it to provide custom stun handling.
+	UFUNCTION()
+	virtual void OnRep_Burned();
+	
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -180,6 +224,22 @@ protected:
 	// Variable to track if the character is dead
 	bool bDead = false;
 	
+	// Callback function that is called by the engine-defined ASC delegate that broadcasts when GameplayTags on the
+	// ASC change. This function is bound to be called when the Debuff.Stun tag is added or removed (when its stack
+	// count changes from or to zero) from the ASC. It handles stun state changes by updating the bIsStunned replicated
+	// variable and modifying the character's movement speed. When stunned (NewCount > 0), movement speed is set to 0
+	// and bIsStunned is set to true. When unstunned (NewCount == 0), movement speed is restored to BaseWalkSpeed and
+	// bIsStunned is set to false. Virtual to allow child classes (like AFoxEnemy) to override and add additional
+	// stun response behavior.
+	virtual void StunTagChanged(const FGameplayTag CallbackTag, int32 NewCount);
+
+	// The character's base walking speed in units per second. This value is used as the default movement speed when
+	// the character is not affected by any movement-altering effects (like stun, slow, etc.). When movement speed
+	// modifying effects are removed, the character's speed is restored to this base value. The value can be set in
+	// the blueprint to allow designers to configure different movement speeds for different character types.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
+	float BaseWalkSpeed = 600.f;
+	
 	// We use the base UAbilitySystemComponent type in the parent class (FoxCharacterBase) because it allows
 	// polymorphism - different child classes can use different AbilitySystemComponent implementations. 
 	// For example, AFoxEnemy uses UFoxAbilitySystemComponent, but another child class could use a different 
@@ -188,7 +248,6 @@ protected:
 	// class flexible and reusable.
 	UPROPERTY()
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
-	
 	
 	// The character's attribute set, which stores gameplay attributes like Health, Mana, Strength, etc.
 	// The AttributeSet works in tandem with the AbilitySystemComponent - while the ASC manages abilities and effects,
@@ -301,12 +360,18 @@ protected:
 	ECharacterClass CharacterClass = ECharacterClass::Warrior;
 	
 	// Niagara component that displays visual effects when the character has the burn debuff applied. This component
-	// automatically activates/deactivates based on the presence of the burn debuff tag in the character's ability
-	// system component. The UDebuffNiagaraComponent listens for changes to its assigned DebuffTag and controls the
-	// Niagara particle system visibility accordingly. The specific Niagara system is configured in
-	// the blueprint.
+	// is activated/deactivated based on the presence of the burn debuff tag in the character's ability
+	// system component. The UDebuffNiagaraComponent class listens for changes to its assigned DebuffTag and controls the
+	// Niagara particle system visibility accordingly. The specific Niagara system is set in the blueprint.
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UDebuffNiagaraComponent> BurnDebuffComponent;
+	
+	// Niagara component that displays visual effects when the character has the stun debuff applied. This component
+	// is activated/deactivated based on the presence of the stun debuff tag in the character's ability
+	// system component. The UDebuffNiagaraComponent class listens for changes to its assigned DebuffTag and controls the
+	// Niagara particle system visibility accordingly. The specific Niagara system is set in the blueprint.
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UDebuffNiagaraComponent> StunDebuffComponent;
 	
 private:
 	

@@ -94,6 +94,13 @@ AFoxEnemy::AFoxEnemy()
 	// meaning the HealthBar's world transform will be relative to the root component's transform, ensuring the health bar
 	// always stays positioned correctly above the enemy even as the enemy moves around the level.
 	HealthBar->SetupAttachment(GetRootComponent());
+	
+	// Initialize the BaseWalkSpeed inherited variable to 250 Unreal units per second, which serves as the default movement speed
+	// for this enemy character. This value is applied to the CharacterMovementComponent's MaxWalkSpeed in BeginPlay() and
+	// acts as the "normal" walking speed that the enemy returns to after temporary speed modifications (such as being 
+	// slowed during hit reactions when bHitReacting is true and MaxWalkSpeed is set to 0 or during the stun debuff). 
+	// This can be adjusted per-enemy-type in blueprints to create faster or slower enemy variants without modifying code.
+	BaseWalkSpeed = 250.f;
 }
 
 void AFoxEnemy::PossessedBy(AController* NewController)
@@ -370,6 +377,33 @@ void AFoxEnemy::InitAbilityActorInfo()
 	// initialize in the correct order.
 	Cast<UFoxAbilitySystemComponent>(AbilitySystemComponent)->AbilityActorInfoSet();
 	
+	/**
+	 * Register a callback for when the Debuff_Stun gameplay tag is added or removed from the ASC
+	 * 
+	 * Breaking down this line:
+	 * 1. AbilitySystemComponent->RegisterGameplayTagEvent(...) - Registers a delegate that fires when a specific tag changes
+	 * 2. FFoxGameplayTags::Get().Debuff_Stun - The gameplay tag we're monitoring (represents stun debuff state)
+	 * 3. EGameplayTagEventType::NewOrRemoved - Event type that triggers when:
+	 *    - NewOrRemoved: Fires when tag count goes from 0 to 1 (added) OR from 1 to 0 (removed)
+	 *    - Alternative types: NewOrIncremented (fires on every add), RemovedOrDecremented (fires on every remove)
+	 * 4. .AddUObject(this, &AFoxCharacter::StunTagChanged) - Binds the StunTagChanged function as the callback
+	 *    - 'this': The object instance that owns the callback function (this AFoxCharacter)
+	 *    - &AEnemyCharacter::StunTagChanged: Pointer to the member function that will be called when the tag count changes
+	 *    and the delegate broadcasts
+	 * 
+	 * What this accomplishes:
+	 * - Monitors the ASC for changes to the Debuff_Stun tag count
+	 * - When a stun effect is applied (tag added), StunTagChanged fires with NewCount > 0 (NewCount is an input parameter
+	 *   of the callback function that the delegate will pass this function. It is the the new tag count)
+	 * - When all stun effects expire (tag removed), StunTagChanged fires with NewCount = 0
+	 * - StunTagChanged then applies/removes input blocking tags and stun visual effects
+	 * 
+	 * Note: The callback function StunTagChanged receives:
+	 * - CallbackTag: The tag that changed (Debuff_Stun in this case)
+	 * - NewCount: The new reference count for this tag (0 = removed, >0 = active)
+	 */
+	AbilitySystemComponent->RegisterGameplayTagEvent(FFoxGameplayTags::Get().Debuff_Stun, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AFoxEnemy::StunTagChanged);
+	
 	// Checks if we are on the server
 	if (HasAuthority())
 	{
@@ -390,4 +424,27 @@ void AFoxEnemy::InitializeDefaultAttributes() const
 	// This function gets the data asset stored on the game mode, gets the class info based on the character class and 
 	// applies gameplay effects based on the enemies class and level to initialize the default attributes
 	UFoxAbilitySystemLibrary::InitializeDefaultAttributes(this, CharacterClass, Level, AbilitySystemComponent);
+}
+
+void AFoxEnemy::StunTagChanged(const FGameplayTag CallbackTag, int32 NewCount)
+{
+	// Call the parent class implementation (AFoxCharacterBase::StunTagChanged) which updates the bIsStunned value and
+	// disables/enables movement based on that value
+	Super::StunTagChanged(CallbackTag, NewCount);
+
+	// Perform a null-check safety validation before attempting to access the blackboard component. This two-part check
+	// ensures that: 1) FoxAIController pointer is valid (the enemy has been possessed by an AI controller), and
+	// 2) The AI controller's blackboard component exists and has been properly initialized. Without this validation,
+	// attempting to call GetBlackboardComponent() on a null FoxAIController or calling SetValueAsBool on a null
+	// blackboard component would cause a crash. This situation could occur during initialization before PossessedBy
+	// is called, or if the AI controller setup fails for any reason.
+	if (FoxAIController && FoxAIController->GetBlackboardComponent())
+	{
+		// Update the Stunned blackboard key with the current bIsStunned state (which was updated by the parent class).
+		// This communicates to the Behavior Tree that the enemy is currently stunned, which allows the BT to make
+		// decisions based on this state (e.g., pausing all AI actions, stopping movement, canceling attacks, or waiting
+		// until the stun effect expires before resuming normal AI behavior). The blackboard acts as shared memory
+		// between C++ code and the visual Behavior Tree logic in the editor.
+		FoxAIController->GetBlackboardComponent()->SetValueAsBool(FName("Stunned"), bIsStunned);
+	}
 }

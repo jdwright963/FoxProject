@@ -142,6 +142,23 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UNiagaraComponent> LevelUpNiagaraComponent;
 	
+	/**
+	 * OnRep_Stunned - Declared in FoxCharacterBase.h and overridden here
+	 * 
+	 * This is an OnRep function that is called only on CLIENTS when the bIsStunned variable
+	 * is replicated from the server. Updates visual effects like stun particle effects and
+	 * enables or disables the characters ability to move or interact with the world depending on the value of bIsStunned
+	 */
+	virtual void OnRep_Stunned() override;
+
+	/**
+	 * OnRep_Burned - Declared in FoxCharacterBase.h and overridden here
+	 * 
+	 * This is an OnRep function that is called only on CLIENTS when the bIsBurned variable
+	 * is replicated from the server. It enables or disables the fire particle effect depending on the value of bIsBurned
+	 */
+	virtual void OnRep_Burned() override;
+	
 private:
 	
 	/**

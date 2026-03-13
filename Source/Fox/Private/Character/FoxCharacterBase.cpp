@@ -9,7 +9,9 @@
 #include "AbilitySystem/Debuff/DebuffNiagaraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Fox/Fox.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
 
 AFoxCharacterBase::AFoxCharacterBase()
 {
@@ -32,6 +34,19 @@ AFoxCharacterBase::AFoxCharacterBase()
 	// Assigns the Debuff_Burn gameplay tag to the component's DebuffTag property, which the component uses to register
 	// a callback that listens for when this tag is added or removed from the owner's ASC to activate/deactivate the effect
 	BurnDebuffComponent->DebuffTag = GameplayTags.Debuff_Burn;
+	
+	// Creates a UDebuffNiagaraComponent subobject named "StunDebuffComponent" that will visually represent the stun
+	// debuff effect using a Niagara particle system. This component will automatically activate/deactivate based on
+	// whether the character has the stun debuff gameplay tag applied to their ability system component
+	StunDebuffComponent = CreateDefaultSubobject<UDebuffNiagaraComponent>("StunDebuffComponent");
+
+	// Attaches the stun debuff Niagara component to the character's root component (capsule) so it follows the
+	// character's position and rotation, ensuring the particle effect stays with the character as they move
+	StunDebuffComponent->SetupAttachment(GetRootComponent());
+
+	// Assigns the Debuff_Stun gameplay tag to the component's DebuffTag property, which the component uses to register
+	// a callback that listens for when this tag is added or removed from the owner's ASC to activate/deactivate the effect
+	StunDebuffComponent->DebuffTag = GameplayTags.Debuff_Stun;
 	
 	// Configures the capsule component to ignore collision with the camera channel, preventing the camera from being 
 	// blocked or pushed by the character's capsule collision during gameplay
@@ -64,6 +79,29 @@ AFoxCharacterBase::AFoxCharacterBase()
 	// Disables all collision detection for the weapon skeletal mesh by default, preventing it from blocking or generating 
 	// overlap events until collision is explicitly enabled (typically when the weapon is dropped during the death sequence)
 	Weapon->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+}
+
+void AFoxCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	// Calls the parent class implementation of GetLifetimeReplicatedProps to ensure that any properties marked for 
+	// replication in base classes (such as ACharacter) are properly registered in the OutLifetimeProps array. This is 
+	// essential for maintaining the replication chain, as skipping this call would prevent inherited replicated 
+	// properties from being synchronized across the network
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	// Registers the bIsStunned boolean member variable for replication using the DOREPLIFETIME macro. This ensures that 
+	// when the stun state changes on the server (typically when the Debuff_Stun gameplay tag is added or removed from the 
+	// ASC), the new value is automatically replicated to all connected clients, keeping the stun state synchronized across 
+	// the network. When the replicated value changes on a client, the OnRep_Stunned() callback function is automatically 
+	// invoked to handle client-side response to the stun state change
+	DOREPLIFETIME(AFoxCharacterBase, bIsStunned);
+
+	// Registers the bIsBurned boolean member variable for replication using the DOREPLIFETIME macro. This ensures that 
+	// when the burn state changes on the server (typically when the Debuff_Burn gameplay tag is added or removed from the 
+	// ASC), the new value is automatically replicated to all connected clients, keeping the burn state synchronized across 
+	// the network. When the replicated value changes on a client, the OnRep_Burned() callback function is automatically 
+	// invoked to handle client-side response to the burn state change
+	DOREPLIFETIME(AFoxCharacterBase, bIsBurned);
 }
 
 UAbilitySystemComponent* AFoxCharacterBase::GetAbilitySystemComponent() const
@@ -153,12 +191,28 @@ void AFoxCharacterBase::MulticastHandleDeath_Implementation(const FVector& Death
 	// regardless of tag state, preventing burn particles from continuing to play on the ragdolled corpse
 	BurnDebuffComponent->Deactivate();
 	
+	// Manually deactivates the stun debuff Niagara component, immediately stopping the stun particle effect on the 
+	// character's body. While the component has its own callback registered to deactivate when the Debuff_Stun tag is 
+	// removed from the ASC, explicitly calling Deactivate here ensures the visual effect stops instantly on death 
+	// regardless of tag state, preventing burn particles from continuing to play on the ragdolled corpse
+	StunDebuffComponent->Deactivate();
+	
 	// Broadcasts the OnDeathDelegate multicast delegate, notifying all registered listeners that this character has died by 
 	// passing 'this' as the dead actor parameter. Listeners can include UI widgets that need to update death counts, 
 	// AI controllers that need to select new targets, quest systems tracking enemy kills, debuff components that need 
 	// to deactivate visual effects, the electrocute ability to stop since it is an ability that is active as long as the
 	// user holds down the input and we want it to stop when the target dies), or any other system that needs to respond to character death events
 	OnDeathDelegate.Broadcast(this);
+}
+
+void AFoxCharacterBase::OnRep_Stunned()
+{
+	
+}
+
+void AFoxCharacterBase::OnRep_Burned()
+{
+	
 }
 
 void AFoxCharacterBase::BeginPlay()
@@ -315,6 +369,22 @@ USkeletalMeshComponent* AFoxCharacterBase::GetWeapon_Implementation()
 {
 	// Returns the Weapon member variable (the character's weapon skeletal mesh component)
 	return Weapon;
+}
+
+void AFoxCharacterBase::StunTagChanged(const FGameplayTag CallbackTag, int32 NewCount)
+{
+	// Sets the bIsStunned boolean member variable to true if NewCount is greater than 0 (meaning at least one instance 
+	// of the stun tag exists on the ASC), or false if NewCount is 0 (meaning no stun tags remain). This simple comparison 
+	// converts the tag count into a boolean state that can be easily checked by other systems and is replicated to clients 
+	// via the OnRep_Stunned callback when the value changes, ensuring the stun state is synchronized across the network
+	bIsStunned = NewCount > 0;
+
+	// Sets the character's maximum walk speed based on the stun state using a ternary conditional operator. If bIsStunned 
+	// is true (character is stunned), MaxWalkSpeed is set to 0.f which completely prevents the character from moving. If 
+	// bIsStunned is false (character is not stunned), MaxWalkSpeed is restored to BaseWalkSpeed (the character's normal 
+	// movement speed stored as a member variable). This provides immediate gameplay feedback by freezing a stunned character 
+	// in place while allowing normal movement when the stun effect expires or is removed
+	GetCharacterMovement()->MaxWalkSpeed = bIsStunned ? 0.f : BaseWalkSpeed;
 }
 
 void AFoxCharacterBase::InitAbilityActorInfo()

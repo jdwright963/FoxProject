@@ -4,9 +4,11 @@
 #include "Character/FoxCharacter.h"
 
 #include "AbilitySystemComponent.h"
+#include "FoxGameplayTags.h"
 #include "NiagaraComponent.h"
 #include "AbilitySystem/FoxAbilitySystemComponent.h"
 #include "AbilitySystem/Data/LevelUpInfo.h"
+#include "AbilitySystem/Debuff/DebuffNiagaraComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -716,6 +718,223 @@ int32 AFoxCharacter::GetPlayerLevel_Implementation()
 	return FoxPlayerState->GetPlayerLevel();
 }
 
+void AFoxCharacter::OnRep_Stunned()
+{
+	// Cast the inherited Ability System Component to UFoxAbilitySystemComponent, store it in a variable, and perform a
+	// null-check to see if the cast was successful
+	if (UFoxAbilitySystemComponent* FoxASC = Cast<UFoxAbilitySystemComponent>(AbilitySystemComponent))
+	{
+		/**
+		 * Retrieve the singleton instance of FFoxGameplayTags
+		 * 
+		 * FFoxGameplayTags::Get() returns a const reference to the singleton that holds all gameplay tags used in the project
+		 * This provides centralized access to tags without repeatedly calling FGameplayTag::RequestGameplayTag().
+		 * We store this in a const reference to avoid copying the entire tags structure
+		 */
+		const FFoxGameplayTags& GameplayTags = FFoxGameplayTags::Get();
+
+		/**
+		 * Create a container to hold all input-blocking gameplay tags
+		 * 
+		 * FGameplayTagContainer is a container that can hold multiple FGameplayTag instances
+		 * We use this to group all player input blocking tags together so they can be added/removed as a batch
+		 * 
+		 * This is more efficient than adding/removing tags individually and ensures all blocking tags are applied atomically
+		 * When stunned, since all four input types (cursor trace, held, pressed, released) should be blocked simultaneously
+		 */
+		FGameplayTagContainer BlockedTags;
+
+		/**
+		 * Add Player_Block_CursorTrace tag to disable mouse cursor interaction while stunned
+		 * 
+		 * Player_Block_CursorTrace prevents the player from:
+		 * - Hovering over enemies to highlight them
+		 * - Clicking on targets to select them
+		 * - Using mouse cursor for any combat targeting
+		 * 
+		 * This is crucial for stun mechanics because a stunned character should not be able to interact with the world
+		 * The tag is checked in AFoxPlayerController's cursor trace logic to skip all mouse interaction when present
+		 */
+		BlockedTags.AddTag(GameplayTags.Player_Block_CursorTrace);
+
+		/**
+		 * Add Player_Block_InputHeld tag to disable continuous held input detection while stunned
+		 * 
+		 * Player_Block_InputHeld prevents the player from:
+		 * - Holding down movement keys (WASD) to continuously move
+		 * - Holding ability buttons to charge or continuously cast
+		 * - Any input that registers as "being held down"
+		 * 
+		 * This is essential for stun mechanics because it prevents the character from moving or casting while disabled
+		 * The tag is checked in input handling code to ignore InputHeld events when present
+		 */
+		BlockedTags.AddTag(GameplayTags.Player_Block_InputHeld);
+
+		/**
+		 * Add Player_Block_InputPressed tag to disable initial button press detection while stunned
+		 * 
+		 * Player_Block_InputPressed prevents the player from:
+		 * - Pressing movement keys to initiate movement
+		 * - Pressing ability keys to start casting
+		 * - Any input that registers as "pressed"
+		 * 
+		 * This prevents players from performing actions or abilities while stunned
+		 * The tag is checked in input handling code to ignore InputPressed events when present
+		 */
+		BlockedTags.AddTag(GameplayTags.Player_Block_InputPressed);
+
+		/**
+		 * Add Player_Block_InputReleased tag to disable button release detection while stunned
+		 * 
+		 * Player_Block_InputReleased prevents the player from:
+		 * - Releasing ability keys to complete charged abilities
+		 * - Any input that registers as "just released" this frame
+		 * 
+		 * This ensures abilities that activate on release (like charged shots) cannot be triggered while stunned
+		 * The tag is checked in input handling code to ignore InputReleased events when present
+		 */
+		BlockedTags.AddTag(GameplayTags.Player_Block_InputReleased);
+		
+		/**
+		 * Check if the character is currently stunned
+		 * 
+		 * bIsStunned is a replicated boolean variable (defined in AFoxCharacterBase) that indicates whether the 
+		 * character is stunned. This variable is set to true when a stun debuff is applied and false when it's removed.
+		 * This function OnRep_Stunned() is automatically called on clients when bIsStunned changes due to replication
+		 * 
+		 * These if/else branches handle both applying and removing stun effects:
+		 * - true: Character just became stunned → block input and show visual effect
+		 * - false: Stun effect ended → restore input and hide visual effect
+		 */
+		if (bIsStunned)
+		{
+			/**
+			 * Apply all input-blocking tags to the Ability System Component.
+			 *
+			 * "Loose" tags are Gameplay Tags managed directly by the ASC without the overhead 
+			 * of a Gameplay Effect (GE). Unlike tags granted by a GE, which are tied to the 
+			 * effect's duration, Loose tags are manually added and removed via C++. 
+			 * 
+			 * These tags are "Reference Counted." If multiple overlapping systems (e.g., a Stun 
+			 * and a Hit-Reaction) add the same blocking tag, the tag will only be removed from 
+			 * the ASC once every system has called for its removal. This ensures that the 
+			 * player remains locked out of input as long as at least one blocking source exists.
+			 *
+			 * Effect on gameplay:
+			 * - PlayerController checks the ASC for these specific tags before processing input.
+			 * - When any block tag is present, the corresponding movement or ability input is ignored.
+			 * - This creates a fail-safe input lockout during stun/hit-react states.
+			 *
+			 * Why use tags instead of boolean flags:
+			 * - Tags integrate natively with GAS's Ability Activation requirements (e.g., "Block Abilities").
+			 * - Reference counting handles overlapping status effects automatically without complex bool logic.
+			 * - Systems remain decoupled, so any new system can check these tags without knowing about the Stun system.
+			 */
+			FoxASC->AddLooseGameplayTags(BlockedTags);
+
+			/**
+			 * Activate the stun visual effect
+			 * 
+			 * StunDebuffComponent is a UDebuffNiagaraComponent (defined in AFoxCharacterBase) that displays
+			 * a Niagara particle system to visually indicate the character is stunned
+			 * 
+			 * Activate() starts playing the particle system:
+			 * - Spawns stun effect particles around the character (e.g., stars circling head, electric sparks)
+			 * - Provides visual feedback to players that the character cannot act
+			 * - Helps identify stunned enemies in combat for tactical decision-making
+			 * 
+			 * The component remains active until Deactivate() is called when the stun ends
+			 * This creates a persistent visual indicator for the entire duration of the stun effect
+			 */
+			StunDebuffComponent->Activate();
+		}
+		else
+		{
+			/**
+			 * Remove all input-blocking tags from the Ability System Component
+			 * 
+			 * RemoveLooseGameplayTags() removes the entire BlockedTags container from the ASC's active tags
+			 * This is the inverse operation of AddLooseGameplayTags() called when the stun was applied
+			 * 
+			 * What this does:
+			 * - Removes Player_Block_CursorTrace tag → restores mouse cursor interaction
+			 * - Removes Player_Block_InputHeld tag → allows continuous held input again
+			 * - Removes Player_Block_InputPressed tag → enables new button presses
+			 * - Removes Player_Block_InputReleased tag → processes button releases normally
+			 * 
+			 * Effect on gameplay:
+			 * - Player controller no longer sees blocking tags and resumes processing input
+			 * - Character can move, cast abilities, and interact with the world again
+			 * - Returns full control to the player after stun duration expires
+			 * 
+			 * Tag counting safety:
+			 * - If multiple stuns were applied, tags only fully remove when count reaches 0
+			 * - This prevents premature input restoration if overlapping stuns exist
+			 * - GAS automatically handles the reference counting for loose tags
+			 */
+			FoxASC->RemoveLooseGameplayTags(BlockedTags);
+
+			/**
+			 * Deactivate the stun visual effect
+			 * 
+			 * StunDebuffComponent is a UDebuffNiagaraComponent that was activated when the stun began
+			 * 
+			 * Deactivate() stops playing the particle system:
+			 * - Removes the visual stun effect from the character
+			 * - Provides clear visual feedback that the stun has ended
+			 * - Signals to players that the character has regained control
+			 */
+			StunDebuffComponent->Deactivate();
+		}
+	}
+}
+
+void AFoxCharacter::OnRep_Burned()
+{
+	/**
+	 * Check if the character has the burn debuff
+	 * 
+	 * bIsBurned is a replicated boolean variable (defined in AFoxCharacterBase) that indicates whether the 
+	 * character is suffering from a burn debuff. This variable is set to true when a burn effect is applied 
+	 * and false when it's removed. This function OnRep_Burned() is automatically called on clients when 
+	 * bIsBurned changes due to replication.
+	 * 
+	 * These if/else branches handle both applying and removing burn effects:
+	 * - true: Character just became burned → show burn visual effect
+	 * - false: Burn effect ended → hide burn visual effect
+	 */
+	if (bIsBurned)
+	{
+		/**
+		 * Activate the burn visual effect
+		 * 
+		 * BurnDebuffComponent is a UDebuffNiagaraComponent (defined in AFoxCharacterBase) that displays
+		 * a Niagara particle system to visually indicate the character is burning
+		 * 
+		 * Activate() starts playing the particle system:
+		 * - Spawns fire particles around the character
+		 * - Provides visual feedback to players that the character is taking damage over time
+		 * 
+		 * The component remains active until Deactivate() is called when the burn ends
+		 */
+		BurnDebuffComponent->Activate();
+	}
+	// Check if the character does NOT have the burn debuff
+	else
+	{
+		/**
+		 * Deactivate the burn visual effect
+		 * 
+		 * BurnDebuffComponent is a UDebuffNiagaraComponent that was activated when the burn began
+		 * 
+		 * Deactivate() stops playing the particle system:
+		 * - Removes the visual burn effect from the character
+		 * - Provides clear visual feedback that the burn has ended
+		 */
+		BurnDebuffComponent->Deactivate();
+	}
+}
+
 void AFoxCharacter::InitAbilityActorInfo()
 {
 	// Retrieve and cast the PlayerState to AFoxPlayerState to access Fox-specific player data and the Ability System Component
@@ -824,6 +1043,33 @@ void AFoxCharacter::InitAbilityActorInfo()
 	 * The delegate is defined in ICombatInterface and implemented in AFoxCharacterBase
 	 */
 	OnAscRegistered.Broadcast(AbilitySystemComponent);
+	
+	/**
+	 * Register a callback for when the Debuff_Stun gameplay tag is added or removed from the ASC
+	 * 
+	 * Breaking down this line:
+	 * 1. AbilitySystemComponent->RegisterGameplayTagEvent(...) - Registers a delegate that fires when a specific tag changes
+	 * 2. FFoxGameplayTags::Get().Debuff_Stun - The gameplay tag we're monitoring (represents stun debuff state)
+	 * 3. EGameplayTagEventType::NewOrRemoved - Event type that triggers when:
+	 *    - NewOrRemoved: Fires when tag count goes from 0 to 1 (added) OR from 1 to 0 (removed)
+	 *    - Alternative types: NewOrIncremented (fires on every add), RemovedOrDecremented (fires on every remove)
+	 * 4. .AddUObject(this, &AFoxCharacter::StunTagChanged) - Binds the StunTagChanged function as the callback
+	 *    - 'this': The object instance that owns the callback function (this AFoxCharacter)
+	 *    - &AFoxCharacter::StunTagChanged: Pointer to the member function that will be called when the tag count changes
+	 *    and the delegate broadcasts
+	 * 
+	 * What this accomplishes:
+	 * - Monitors the ASC for changes to the Debuff_Stun tag count
+	 * - When a stun effect is applied (tag added), StunTagChanged fires with NewCount > 0 (NewCount is an input parameter
+	 *   of the callback function that the delegate will pass this function. It is the the new tag count)
+	 * - When all stun effects expire (tag removed), StunTagChanged fires with NewCount = 0
+	 * - StunTagChanged then applies/removes input blocking tags and stun visual effects
+	 * 
+	 * Note: The callback function StunTagChanged receives:
+	 * - CallbackTag: The tag that changed (Debuff_Stun in this case)
+	 * - NewCount: The new reference count for this tag (0 = removed, >0 = active)
+	 */
+	AbilitySystemComponent->RegisterGameplayTagEvent(FFoxGameplayTags::Get().Debuff_Stun, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AFoxCharacter::StunTagChanged);
 	
 	/**
 	 * Initialize the player's HUD overlay after Ability System is ready

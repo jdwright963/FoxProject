@@ -69,10 +69,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	bool bHitReacting = false;
 	
-	// Variable that is the enemy's base walk speed
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
-	float BaseWalkSpeed = 250.f; 
-	
 	// Variable that is the lifespan of this enemy's dead body after which it will dissapear
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
 	float LifeSpan = 5.f; 
@@ -91,6 +87,11 @@ protected:
 
 	// Applies the default attribute values to this character using gameplay effects based on character class and level
 	virtual void InitializeDefaultAttributes() const override;
+	
+	// Callback function that is called by the engine defined ASC delegate that broadcasts when the GameplayTags on the 
+	// ASC change. This function is bound to only be called when the Stun tag is added or removed completely (Not
+	// just a single instance) from the ASC. Inherited from AFoxCharacterBase and overridden here
+	virtual void StunTagChanged(const FGameplayTag CallbackTag, int32 NewCount) override;
 	
 	// Variable that defines the enemy's level. This value is used by the CharacterClassInfo system to scale the 
 	// enemy's attributes (Primary, Secondary, and Vital) based on the character class. Higher levels result in 

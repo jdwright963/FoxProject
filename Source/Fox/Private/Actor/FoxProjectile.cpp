@@ -70,6 +70,12 @@ void AFoxProjectile::BeginPlay()
 	// Sets the lifespan of the projectile
 	SetLifeSpan(LifeSpan);
 	
+	// Enable automatic replication of this projectile's movement to all clients so they see smooth synchronized motion.
+	// This must be called in BeginPlay() rather than the constructor because the replication system is not fully 
+	// initialized during construction. The actor's network role, owner, and connection state are only properly set 
+	// after the actor is spawned and added to the world, which happens before BeginPlay() but after the constructor.
+	SetReplicateMovement(true);
+	
 	// Prevent immediate self-overlap on server/client regardless of effect context state
 	if (AActor* MyOwner = GetOwner())
 	{
@@ -150,6 +156,10 @@ void AFoxProjectile::Destroyed()
 
 void AFoxProjectile::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+	// Early exit if the source Ability System Component is invalid. This prevents null pointer crashes
+	// when trying to access the source ASC later for damage application.
+	if (DamageEffectParams.SourceAbilitySystemComponent == nullptr) return;
+	
 	// Retrieve the avatar actor (typically the character) that owns the source Ability System Component.
 	// This is the actor that originally cast the ability and spawned this projectile, extracted from
 	// the DamageEffectParams struct that was configured when the projectile was created.

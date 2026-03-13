@@ -1015,12 +1015,46 @@ void UFoxAttributeSet::Debuff(const FEffectProperties& Props)
 	// removed from the target actor while this effect is active. We need this component to grant the appropriate debuff
 	// tag (like Debuff.Burn or Debuff.Stun) to the target so other systems can query whether the target is debuffed
 	UTargetTagsGameplayEffectComponent& TargetTagsComponent = Effect->FindOrAddComponent<UTargetTagsGameplayEffectComponent>();
+	
+	// Retrieves the appropriate debuff tag from the DamageTypesToDebuffs map by using the damage type as the lookup key,
+	// this map maps damage types (Fire, Lightning, Arcane, Physical) to their corresponding debuff tags (Debuff.Burn,
+	// Debuff.Stun, etc.). This allows us to dynamically determine which debuff should be applied
+	// based on the type of damage that triggered the debuff, ensuring fire damage applies burning, lightning damage
+	// applies stunning, etc., without needing separate conditional logic for each damage/debuff combination
+	const FGameplayTag DebuffTag = GameplayTags.DamageTypesToDebuffs[DamageType];
+	
+	// Adds the DebuffTag to the InheritedTagContainer's Added tag container, which specifies that this tag should
+	// be granted to the target actor while the debuff effect is active, allowing other gameplay systems to query
+	// whether the target currently has this specific debuff (Burn, Stun, etc.) via tag checks on their
+	// ability system component
+	InheritedTagContainer.Added.AddTag(DebuffTag);
+	
+	// Checks if the debuff tag exactly matches the Stun debuff tag using MatchesTagExact (which requires complete tag 
+	// equality rather than only the parent tag matching), because the Stun debuff requires special handling to disable all
+	// player input capabilities while the effect is active, preventing the stunned player from moving, attacking, or
+	// using abilities during the stun duration
+	if (DebuffTag.MatchesTagExact(GameplayTags.Debuff_Stun))
+	{
+		// Adds the Player_Block_CursorTrace tag to prevent the player's cursor from performing trace queries to detect
+		// enemies or interactable objects in the world, which disables the player's ability to highlight or target
+		// anything with their mouse during the stun effect
+		InheritedTagContainer.Added.AddTag(GameplayTags.Player_Block_CursorTrace);
 
-	// Adds the appropriate debuff tag to the InheritedTagContainer's Added collection by looking up the damage type
-	// in the DamageTypesToDebuffs map (which maps Fire->Debuff.Burn, Lightning->Debuff.Stun, etc.), ensuring that
-	// when this effect is applied, the target receives the correct debuff identification tag that can be queried by
-	// other gameplay systems, UI elements, or abilities that need to know the target's current debuff status
-	InheritedTagContainer.Added.AddTag(GameplayTags.DamageTypesToDebuffs[DamageType]);
+		// Adds the Player_Block_InputHeld tag to prevent processing of continuous held input actions (like holding down
+		// a movement key or ability button), which stops the player from performing any sustained actions that require
+		// holding a button, ensuring the stun completely halts ongoing player actions
+		InheritedTagContainer.Added.AddTag(GameplayTags.Player_Block_InputHeld);
+
+		// Adds the Player_Block_InputPressed tag to prevent processing of new input press events, which blocks the
+		// player from initiating any new abilities, attacks, or movement commands by pressing keys or mouse buttons,
+		// making them unable to start any new actions while stunned
+		InheritedTagContainer.Added.AddTag(GameplayTags.Player_Block_InputPressed);
+
+		// Adds the Player_Block_InputReleased tag to prevent processing of input release events, which blocks the
+		// handling of button release actions (like releasing a charged ability or ending a held input), ensuring
+		// complete input lockout during the stun effect
+		InheritedTagContainer.Added.AddTag(GameplayTags.Player_Block_InputReleased);
+	}
 
 	// Applies the populated InheritedTagContainer to the TargetTagsComponent, which commits the tag changes we
 	// configured (adding the debuff tag) to the component's internal tag grants, ensuring that when this gameplay
