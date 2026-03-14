@@ -44,6 +44,14 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FAbilityStatusChanged, const FGameplayTag
 // Bound functions must accept four const references to FGameplayTag as their parameters.
 DECLARE_MULTICAST_DELEGATE_FourParams(FAbilityEquipped, const FGameplayTag& /*AbilityTag*/, const FGameplayTag& /*Status*/, const FGameplayTag& /*Slot*/, const FGameplayTag& /*PrevSlot*/);
 
+// DECLARE_MULTICAST_DELEGATE_OneParam creates a multicast delegate type that can broadcast to multiple bound functions.
+// FDeactivatePassiveAbility - the name of the delegate type being declared
+// First parameter: const FGameplayTag& - the ability tag identifying which passive ability should be deactivated
+// This delegate is used to notify passive abilities that they should end/deactivate themselves when this delegate is broadcasted.
+// Bound functions must accept a const reference to FGameplayTag as their parameter, which they compare against their 
+// own AbilityTags to determine if they should deactivate.
+DECLARE_MULTICAST_DELEGATE_OneParam(FDeactivatePassiveAbility, const FGameplayTag& /*AbilityTag*/);
+
 /**
  * 
  */
@@ -92,6 +100,18 @@ public:
 	 * widgets can update their button icons and ability information to reflect the new equipment state.
 	 */
 	FAbilityEquipped AbilityEquipped;
+	
+	/**
+	 * Multicast delegate instance that broadcasts when a passive ability should be deactivated.
+	 * Bound callbacks receive the ability tag identifying which passive ability should end.
+	 * Used by passive abilities (FoxPassiveAbility) to listen for deactivation requests. When a passive ability
+	 * is activated, it binds its ReceiveDeactivate method to this delegate. When this delegate is broadcasted
+	 * with an ability tag, all listening passive abilities check if the tag matches their own AbilityTags and
+	 * end themselves if there's a match. This allows the ASC to request specific passive abilities to deactivate
+	 * without directly referencing or managing individual ability instances, typically used when an ability is
+	 * unequipped or replaced in an input slot.
+	 */
+	FDeactivatePassiveAbility DeactivatePassiveAbility;
 
 	/**
 	 * Grants an array of gameplay abilities to this ability system component.
@@ -121,6 +141,15 @@ public:
 	 */
 	bool bStartupAbilitiesGiven = false;
 	
+	/**
+	 * Handles initial input press events for abilities.
+	 * Searches through granted abilities for one with a dynamic tag matching the InputTag.
+	 * This function is called once when an input action is first pressed, before AbilityInputTagHeld.
+	 * It can be used to trigger immediate ability responses or set up state for held input processing.
+	 * Called by the player controller when an input action is initially pressed.
+	 * 
+	 * @param InputTag The gameplay tag representing the input action (e.g., "InputTag.LMB" or "InputTag.1")
+	 */
 	void AbilityInputTagPressed(const FGameplayTag& InputTag);
 
 	/**
