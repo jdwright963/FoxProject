@@ -111,6 +111,11 @@ public:
 	// Gameplay tag to identify the Electrocute ability
 	FGameplayTag Abilities_Lightning_Electrocute;
 	
+	// Gameplay tags to identify passive spell abilities
+	FGameplayTag Abilities_Passive_HaloOfProtection;
+	FGameplayTag Abilities_Passive_LifeSiphon;
+	FGameplayTag Abilities_Passive_ManaSiphon;
+	
 	// Gameplay tag to identify the FireBolt ability cooldown Gameplay Effect
 	FGameplayTag Cooldown_Fire_FireBolt;
 	

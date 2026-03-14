@@ -102,6 +102,13 @@ void AFoxCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	// the network. When the replicated value changes on a client, the OnRep_Burned() callback function is automatically 
 	// invoked to handle client-side response to the burn state change
 	DOREPLIFETIME(AFoxCharacterBase, bIsBurned);
+	
+	// Registers the bIsBeingShocked boolean member variable for replication using the DOREPLIFETIME macro. This ensures that 
+	// when the shocked state changes on the server (typically when a character is being targeted by the Electrocute ability), 
+	// the new value is automatically replicated to all connected clients, keeping the shocked state synchronized across the 
+	// network. This variable tracks whether the character is currently being shocked, which is used by the Electrocute 
+	// ability system to manage ongoing shock effects and ensure proper visual feedback on all clients
+	DOREPLIFETIME(AFoxCharacterBase, bIsBeingShocked);
 }
 
 UAbilitySystemComponent* AFoxCharacterBase::GetAbilitySystemComponent() const
@@ -369,6 +376,25 @@ USkeletalMeshComponent* AFoxCharacterBase::GetWeapon_Implementation()
 {
 	// Returns the Weapon member variable (the character's weapon skeletal mesh component)
 	return Weapon;
+}
+
+void AFoxCharacterBase::SetIsBeingShocked_Implementation(bool bInShock)
+{
+	// Sets the bIsBeingShocked boolean member variable to the value of the bInShock input parameter, which updates whether this 
+	// character is currently being shocked by the Electrocute ability. This replicated variable is used by the Electrocute 
+	// ability system to track which characters are actively being shocked, ensuring proper visual feedback 
+	// and gameplay logic across the network. When this value changes on the server, it is automatically replicated to all 
+	// connected clients due to the DOREPLIFETIME registration in GetLifetimeReplicatedProps
+	bIsBeingShocked = bInShock;
+}
+
+bool AFoxCharacterBase::IsBeingShocked_Implementation() const
+{
+	// Returns the current value of the bIsBeingShocked boolean member variable, indicating whether this character is 
+	// currently being shocked by the Electrocute ability. This is used by the Electrocute ability system and other gameplay 
+	// systems to check if the character is actively being shocked, enabling proper visual feedback and 
+	// gameplay logic decisions
+	return bIsBeingShocked;
 }
 
 void AFoxCharacterBase::StunTagChanged(const FGameplayTag CallbackTag, int32 NewCount)

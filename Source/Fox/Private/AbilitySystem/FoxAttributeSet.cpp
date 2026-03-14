@@ -375,19 +375,42 @@ void UFoxAttributeSet::HandleIncomingDamage(const FEffectProperties& Props)
 		// Check if the damage was not fatal
 		else
 		{
-			// Creates a tag container
-			FGameplayTagContainer TagContainer;
-			
-			// Gets the singleton instance of FFoxGameplayTags and from it gets the Effects_HitReact tag and adds it
-			// to the tag container
-			TagContainer.AddTag(FFoxGameplayTags::Get().Effects_HitReact);
-			
-			// Try activating abilities by tag on the target ASC. The ability must be given this ability tag in the
-			// editor in the details panel. In the GA_HitReact BP we add the Debuff.Burn tag to the Activation Blocked Tags
-			// in the details panel to prevent the hit react animation from playing when the enemy's ASC has the Debuff.Burn tag,
-			// because the hit react animation does not allow the enemy to move and we want them to continue chasing their
-			// target while burning.
-			Props.TargetASC->TryActivateAbilitiesByTag(TagContainer);
+			/**
+			 * Checks if the target character implements UCombatInterface and is not currently in a shocked state
+			 * before attempting to activate hit reaction abilities.
+			 * 
+			 * This dual condition prevents hit reaction animations from playing in two specific scenarios:
+			 * 
+			 * CONDITION 1 - Implements<UCombatInterface>():
+			 * Verifies the target character implements the combat interface, ensuring we can safely call
+			 * combat-related functions without crashes. Non-combat actors (like environmental props) would fail
+			 * this check and skip hit reactions entirely, which is correct behavior since only combat-capable
+			 * characters should react to being hit.
+			 * 
+			 * CONDITION 2 - !Execute_IsBeingShocked():
+			 * Checks if the target is NOT currently being shocked by calling IsBeingShocked() through the
+			 * BlueprintNativeEvent Execute_ wrapper. The negation (!) means we only proceed if the function
+			 * returns false (not shocked). This prevents hit reactions from interrupting the shocked
+			 * state animation, which is a higher priority crowd control effect that should not be overridden
+			 * by regular hit reactions. If the target is being shocked, they remain locked in their shocked
+			 * animation and this hit reaction code block is skipped.
+			*/
+			if (Props.TargetCharacter->Implements<UCombatInterface>() && !ICombatInterface::Execute_IsBeingShocked(Props.TargetCharacter))
+			{
+				// Creates a tag container
+                FGameplayTagContainer TagContainer;
+                
+                // Gets the singleton instance of FFoxGameplayTags and from it gets the Effects_HitReact tag and adds it
+                // to the tag container
+                TagContainer.AddTag(FFoxGameplayTags::Get().Effects_HitReact);
+                
+                // Try activating abilities by tag on the target ASC. The ability must be given this ability tag in the
+                // editor in the details panel. In the GA_HitReact BP we add the Debuff.Burn tag to the Activation Blocked Tags
+                // in the details panel to prevent the hit react animation from playing when the enemy's ASC has the Debuff.Burn tag,
+                // because the hit react animation does not allow the enemy to move and we want them to continue chasing their
+                // target while burning.
+                Props.TargetASC->TryActivateAbilitiesByTag(TagContainer);
+			}
 			
 			/**
 			 * Retrieves the knockback force vector from the gameplay effect context handle using the custom

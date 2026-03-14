@@ -131,6 +131,20 @@ public:
 	// weapon swapping or customization, and animating weapon-specific behaviors.
 	virtual USkeletalMeshComponent* GetWeapon_Implementation() override;
 	
+	// Overrided function from CombatInterface that sets the value of the variable that indicates whether this character
+	// is currently being shocked by the Electrocute ability. When the input parameter bInShock is true, the character
+	// enters the shocked state. When false, the shocked state is cleared. This function updates the bIsBeingShocked 
+	// replicated variable, which automatically notifies all clients of the state change through the replication system, 
+	// allowing them to respond with appropriate visual and gameplay effects (e.g., activating shock particle effects, 
+	// applying movement restrictions).
+	virtual void SetIsBeingShocked_Implementation(bool bInShock) override;
+
+	// Overrided function from CombatInterface that returns whether this character is currently being shocked.
+	// This function provides read-only access to the bIsBeingShocked state, allowing external systems (like AI
+	// behavior trees, UI elements, or other gameplay systems) to query if the character is affected by the Electrocute
+	// ability without modifying the state.
+	virtual bool IsBeingShocked_Implementation() const override;
+	
 	/** end Combat Interface */
 	
 	// Delegate that broadcasts when this character's Ability System Component has been registered and initialized.
@@ -176,6 +190,9 @@ public:
 	// is called on clients whenever this value changes.
 	UPROPERTY(ReplicatedUsing=OnRep_Burned, BlueprintReadOnly)
 	bool bIsBurned = false;
+	
+	UPROPERTY(Replicated, BlueprintReadOnly)
+	bool bIsBeingShocked = false;
 
 	// Replication notification callback that executes on clients when the bIsStunned variable changes on the server.
 	// This function is automatically called by the replication system after bIsStunned has been updated on the client,

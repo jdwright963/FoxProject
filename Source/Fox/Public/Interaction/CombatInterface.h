@@ -190,4 +190,21 @@ public:
 	// on the weapon mesh for spawning projectiles or effects from the correct position (e.g., staff tip, gun barrel).
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	USkeletalMeshComponent* GetWeapon();
+	
+	// Function that returns whether the character is currently being shocked/electrocuted. BlueprintNativeEvent allows
+	// this to be overridden in both C++ (_Implementation version) and Blueprints. This is used to check if the character
+	// is being shocked by the Electrocute ability, allowing systems to query the shocked state (e.g., for animation states,
+	// AI behavior, or visual effects). The const specifier indicates this function doesn't modify the object's state.
+	// We do not implement this function in this class, only in child classes.
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	bool IsBeingShocked() const;
+
+	// Function that sets whether the character is currently being shocked/electrocuted. BlueprintNativeEvent allows
+	// this to be overridden in both C++ (_Implementation version) and Blueprints. Takes a bInShock parameter which
+	// is a boolean indicating whether to enable (true) or disable (false) the shocked state. This is used by the
+	// Electrocute ability to mark characters as being shocked by the Electrocute ability, enabling appropriate
+	// visual effects, animations, and gameplay responses. We do not implement this function in this class, only in 
+	// child classes.
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void SetIsBeingShocked(bool bInShock);
 };
