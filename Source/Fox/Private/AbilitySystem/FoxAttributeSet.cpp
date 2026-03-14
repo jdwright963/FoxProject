@@ -531,24 +531,43 @@ void UFoxAttributeSet::HandleIncomingXP(const FEffectProperties& Props)
 		// If NumLevelUps is greater than 0, the player leveled up and should receive rewards
 		if (NumLevelUps > 0)
 		{
-			// Retrieves the number of attribute points the player should be awarded for reaching their current level
-			// by calling GetAttributePointsReward() through the IPlayerInterface. This function looks up the reward
-			// value in the LevelUpInfo data asset based on the CurrentLevel parameter, returning how many attribute
-			// points the player earned for this specific level advancement
-			const int32 AttributePointsReward = IPlayerInterface::Execute_GetAttributePointsReward(Props.SourceCharacter, CurrentLevel);
-
-			// Retrieves the number of spell points the player should be awarded for reaching their current level by
-			// calling GetSpellPointsReward() through the IPlayerInterface. This function looks up the reward value
-			// in the LevelUpInfo data asset based on the CurrentLevel parameter, returning how many spell points
-			// the player earned for this specific level advancement
-			const int32 SpellPointsReward = IPlayerInterface::Execute_GetSpellPointsReward(Props.SourceCharacter, CurrentLevel);
-
 			// Increases the player's level by the number of levels gained (NumLevelUps) by calling AddToPlayerLevel()
 			// through the IPlayerInterface. This updates the player's stored level value in the PlayerState, which
 			// is used for stat calculations. If the player gained multiple levels from a single XP reward, all
 			// levels are added at once
 			IPlayerInterface::Execute_AddToPlayerLevel(Props.SourceCharacter, NumLevelUps);
+			
+			// Initializes an accumulator variable to track the total number of attribute points the player should receive
+			// across all levels gained. This starts at 0 and will be incremented in the loop below as we sum up the
+			// attribute point rewards for each individual level advancement
+			int32 AttributePointsReward = 0;
+			
+			// Initializes an accumulator variable to track the total number of spell points the player should receive
+			// across all levels gained. This starts at 0 and will be incremented in the loop below as we sum up the
+			// spell point rewards for each individual level advancement
+			int32 SpellPointsReward = 0;
 
+			// Iterates through each level gained (from 0 to NumLevelUps-1) to accumulate the total attribute and spell
+			// point rewards the player should receive. Each iteration retrieves the rewards for a specific level
+			// (CurrentLevel + i) and adds them to the accumulator variables, ensuring multi-level gains properly award
+			// the sum of rewards from all intermediate levels rather than just the final level's rewards
+			for (int32 i = 0; i < NumLevelUps; ++i)
+			{
+				// Retrieves the number of spell points the player should be awarded for reaching the current level in the for loop
+				// (CurrentLevel + i) by calling GetSpellPointsReward() through the IPlayerInterface. This function looks
+				// up the reward value in the LevelUpInfo data asset based on the (CurrentLevel + i) parameter, returning
+				// how many spell points the player earned for this specific level advancement during the multi-level
+				// gain, and adds it to the accumulator to sum rewards across all gained levels
+				SpellPointsReward += IPlayerInterface::Execute_GetSpellPointsReward(Props.SourceCharacter, CurrentLevel + i);
+
+				// Retrieves the number of attribute points the player should be awarded for reaching the current
+				// level in the for loop (CurrentLevel + i) by calling GetAttributePointsReward() through the IPlayerInterface. This
+				// function looks up the reward value in the LevelUpInfo data asset based on the (CurrentLevel + i)
+				// parameter, returning how many attribute points the player earned for this specific level advancement
+				// during the multi-level gain, and adds it to the accumulator to sum rewards across all gained levels
+				AttributePointsReward += IPlayerInterface::Execute_GetAttributePointsReward(Props.SourceCharacter, CurrentLevel + i);
+			}
+			
 			// Adds the calculated attribute point reward to the player's available attribute points by calling
 			// AddToAttributePoints() through the IPlayerInterface. These points can be spent by the player to
 			// permanently increase primary attributes like Strength, Intelligence, Resilience, or Vigor through

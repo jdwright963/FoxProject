@@ -317,28 +317,22 @@ public:
 	 */
 	UFUNCTION(Server, Reliable)
 	void ServerEquipAbility(const FGameplayTag& AbilityTag, const FGameplayTag& Slot);
-
+	
 	/**
-	 * Notifies the UI about an ability equipment change by broadcasting the AbilityEquipped delegate.
-	 * This function is called after ServerEquipAbility successfully processes an equip request on the server.
+	 * Client RPC that notifies the client about an ability equipment change by broadcasting the AbilityEquipped delegate.
+	 * UFUNCTION(Client, Reliable) ensures this function executes on the client when called from the server.
+	 * "Reliable" guarantees the RPC will arrive even under poor network conditions.
+	 * This function is called by the server after ServerEquipAbility successfully processes an equip request.
 	 * It broadcasts the equipment change to all bound listeners (such as SpellMenuWidgetController and OverlayWidgetController)
 	 * so they can update their displays to reflect the new ability-to-slot assignments.
-	 * Unlike most client RPC functions, this is not marked with UFUNCTION(Client, Reliable) because it's called directly
-	 * on both server and client after equipment operations complete, rather than being remotely invoked.
-	 * 
-	 * Example of remote invocation vs direct calling:
-	 * - Remote invocation (typical Client RPC): ServerEquipAbility_Implementation() calls ClientUpdateAbilityStatus(),
-	 *   which causes Unreal's networking system to automatically invoke ClientUpdateAbilityStatus_Implementation()
-	 *   on the owning client's machine across the network. The function executes on a different machine than where it was called.
-	 * - Direct calling (this function): ServerEquipAbility_Implementation() directly calls ClientEquipAbility()
-	 *   in the same process/machine where it's running (the server), then separately the client also calls it locally
-	 *   when needed. No automatic network transmission occurs. It's just a regular C++ function call within the same executable.
+	 * The implementation function will be auto-generated as ClientEquipAbility_Implementation.
 	 * 
 	 * @param AbilityTag The gameplay tag identifying which ability was equipped (e.g., "Abilities.Fire.FireBolt")
 	 * @param Status The status tag of the ability after equipping (typically "Abilities.Status.Equipped")
 	 * @param Slot The gameplay tag identifying which input slot the ability was equipped to (e.g., "InputTag.1")
 	 * @param PreviousSlot The gameplay tag identifying the slot the ability was previously equipped to, or empty tag if newly equipped
 	 */
+	UFUNCTION(Client, Reliable)
 	void ClientEquipAbility(const FGameplayTag& AbilityTag, const FGameplayTag& Status, const FGameplayTag& Slot, const FGameplayTag& PreviousSlot);
 	
 	/**

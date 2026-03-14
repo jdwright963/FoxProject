@@ -726,7 +726,7 @@ void UFoxAbilitySystemComponent::ServerEquipAbility_Implementation(const FGamepl
 	}
 }
 
-void UFoxAbilitySystemComponent::ClientEquipAbility(const FGameplayTag& AbilityTag, const FGameplayTag& Status, const FGameplayTag& Slot, const FGameplayTag& PreviousSlot)
+void UFoxAbilitySystemComponent::ClientEquipAbility_Implementation(const FGameplayTag& AbilityTag, const FGameplayTag& Status, const FGameplayTag& Slot, const FGameplayTag& PreviousSlot)
 {
 	/*
 	 * Broadcast the AbilityEquipped multicast delegate to notify all registered listeners that an ability has been

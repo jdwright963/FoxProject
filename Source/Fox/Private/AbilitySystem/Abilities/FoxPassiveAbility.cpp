@@ -29,10 +29,11 @@ void UFoxPassiveAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 
 void UFoxPassiveAbility::ReceiveDeactivate(const FGameplayTag& AbilityTag)
 {
-	// Check if this ability's tag container contains an exact match for the deactivation tag.
-	// The AbilityTags container is populated in the Blueprint asset (not in C++ code) by configuring the ability's tags.
-	// HasTagExact ensures we only deactivate if the tag matches precisely (not only parent/child tag matching)
-	if (AbilityTags.HasTagExact(AbilityTag))
+	// Check if this ability's asset tags container (called ability tags in previous versions of the engine) contains an 
+	// exact match for the deactivation tag. The AbilityTags container is populated in the Blueprint asset (not in C++ 
+	// code) by configuring the ability's tags. HasTagExact ensures we only deactivate if the tag matches precisely (not
+	// only parent/child tag matching)
+	if (GetAssetTags().HasTagExact(AbilityTag))
 	{
 		// Terminate this ability instance using the context variables inherited from UGameplayAbility:
 		// - CurrentSpecHandle: A unique ID used by the ASC to identify this specific instance in the 'granted abilities' list.
