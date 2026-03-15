@@ -11,6 +11,7 @@
 #include "Interaction/CombatInterface.h"
 #include "FoxCharacterBase.generated.h"
 
+class UPassiveNiagaraComponent;
 class UDebuffNiagaraComponent;
 class UNiagaraSystem;
 class UGameplayAbility;
@@ -58,6 +59,8 @@ class FOX_API AFoxCharacterBase : public ACharacter, public IAbilitySystemInterf
 public:
 	// Sets default values for this character's properties
 	AFoxCharacterBase();
+	
+	virtual void Tick(float DeltaTime) override;
 	
 	// Overridden from AActor to specify which properties should be replicated across the network.
 	// This function is called by the engine's replication system to register which variables should be replicated
@@ -410,4 +413,36 @@ private:
 	// Stores the animation montage this class or child classes wish to play. This is likely set in the blueprint
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	TObjectPtr<UAnimMontage> HitReactMontage;
+	
+	// Niagara component that displays visual effects when the Halo of Protection passive ability is active.
+	// This component automatically activates/deactivates based on the passive ability state by listening to the
+	// AbilitySystemComponent's ActivatePassiveEffect delegate. The UPassiveNiagaraComponent class filters events
+	// by its assigned PassiveSpellTag and controls the Niagara particle system visibility accordingly. The specific
+	// Niagara system and PassiveSpellTag are set in the blueprint.
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UPassiveNiagaraComponent> HaloOfProtectionNiagaraComponent;
+
+	// Niagara component that displays visual effects when the Life Siphon passive ability is active.
+	// This component automatically activates/deactivates based on the passive ability state by listening to the
+	// AbilitySystemComponent's ActivatePassiveEffect delegate. The UPassiveNiagaraComponent class filters events
+	// by its assigned PassiveSpellTag and controls the Niagara particle system visibility accordingly. The specific
+	// Niagara system and PassiveSpellTag are set in the blueprint.
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UPassiveNiagaraComponent> LifeSiphonNiagaraComponent;
+
+	// Niagara component that displays visual effects when the Mana Siphon passive ability is active.
+	// This component automatically activates/deactivates based on the passive ability state by listening to the
+	// AbilitySystemComponent's ActivatePassiveEffect delegate. The UPassiveNiagaraComponent class filters events
+	// by its assigned PassiveSpellTag and controls the Niagara particle system visibility accordingly. The specific
+	// Niagara system and PassiveSpellTag are set in the blueprint.
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UPassiveNiagaraComponent> ManaSiphonNiagaraComponent;
+
+	// Scene component that serves as an attachment point for passive ability visual effects. This component provides
+	// a specific location and transform where passive ability Niagara components (like HaloOfProtectionNiagaraComponent,
+	// LifeSiphonNiagaraComponent, and ManaSiphonNiagaraComponent) can be attached, allowing designers to position
+	// these effects independently from the character's root or other components. The attachment configuration is
+	// typically set up in the blueprint.
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<USceneComponent> EffectAttachComponent;
 };

@@ -7,6 +7,7 @@
 #include "FoxGameplayTags.h"
 #include "AbilitySystem/FoxAbilitySystemComponent.h"
 #include "AbilitySystem/Debuff/DebuffNiagaraComponent.h"
+#include "AbilitySystem/Passive/PassiveNiagaraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Fox/Fox.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -16,7 +17,7 @@
 AFoxCharacterBase::AFoxCharacterBase()
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 	
 	// Retrieves a const reference to the singleton instance of FFoxGameplayTags, which contains all gameplay tags used
 	// throughout the project. Using a reference avoids unnecessary copying and const ensures immutability
@@ -79,6 +80,71 @@ AFoxCharacterBase::AFoxCharacterBase()
 	// Disables all collision detection for the weapon skeletal mesh by default, preventing it from blocking or generating 
 	// overlap events until collision is explicitly enabled (typically when the weapon is dropped during the death sequence)
 	Weapon->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	
+	// Creates a USceneComponent subobject named "EffectAttachPoint" that serves as a dedicated attachment point for 
+	// passive ability visual effects. This component acts as an intermediary attachment node between the character's 
+	// root component and the passive effect Niagara components, allowing for centralized control of effect positioning 
+	// and rotation. By having a separate scene component, we can manipulate the rotation of all passive effects 
+	// simultaneously (as seen in the Tick function where it's locked to world space) without affecting the character's 
+	// own rotation or having to update each effect component individually
+	EffectAttachComponent = CreateDefaultSubobject<USceneComponent>("EffectAttachPoint");
+	
+	// Attaches the EffectAttachComponent to the character's root component (capsule) so it follows the character's 
+	// position and rotation by default. However, the Tick function explicitly overrides the rotation each frame by 
+	// calling SetWorldRotation(FRotator::ZeroRotator), which locks the component's rotation to identity/world space 
+	// (0, 0, 0 rotation - aligned with world axes, facing the world's forward direction with no pitch/roll/yaw), ensuring
+	// passive effect visuals move with the character but remain level regardless of character pitch/roll. Without the 
+	// Tick override, this component would inherit and follow the root component's rotation as well as its position
+	EffectAttachComponent->SetupAttachment(GetRootComponent());
+
+	// Creates a UPassiveNiagaraComponent subobject named "HaloOfProtectionComponent" that will visually represent the 
+	// Halo of Protection passive ability using a Niagara particle system. This component will automatically activate 
+	// when the Halo of Protection passive ability is activated (via the ActivatePassiveEffect delegate in the ASC) and 
+	// deactivate when the ability is removed, providing visual feedback that the defensive buff is active on the character
+	HaloOfProtectionNiagaraComponent = CreateDefaultSubobject<UPassiveNiagaraComponent>("HaloOfProtectionComponent");
+
+	// Attaches the Halo of Protection Niagara component to the EffectAttachComponent rather than directly to the root, 
+	// allowing the effect to benefit from the centralized rotation control provided by EffectAttachComponent (ensuring 
+	// the effect remains properly oriented regardless of character orientation)
+	HaloOfProtectionNiagaraComponent->SetupAttachment(EffectAttachComponent);
+
+	// Creates a UPassiveNiagaraComponent subobject named "LifeSiphonNiagaraComponent" that will visually represent the 
+	// Life Siphon passive ability using a Niagara particle system. This component will automatically activate when the 
+	// Life Siphon passive ability is activated (via the ActivatePassiveEffect delegate in the ASC) and deactivate when 
+	// the ability is removed, providing visual feedback that the life-stealing buff is active on the character
+	LifeSiphonNiagaraComponent = CreateDefaultSubobject<UPassiveNiagaraComponent>("LifeSiphonNiagaraComponent");
+
+	// Attaches the Life Siphon Niagara component to the EffectAttachComponent rather than directly to the root, 
+	// allowing the effect to benefit from the centralized rotation control provided by EffectAttachComponent (ensuring 
+	// the effect remains properly oriented regardless of character orientation)
+	LifeSiphonNiagaraComponent->SetupAttachment(EffectAttachComponent);
+
+	// Creates a UPassiveNiagaraComponent subobject named "ManaSiphonNiagaraComponent" that will visually represent the 
+	// Mana Siphon passive ability using a Niagara particle system. This component will automatically activate when the 
+	// Mana Siphon passive ability is activated (via the ActivatePassiveEffect delegate in the ASC) and deactivate when 
+	// the ability is removed, providing visual feedback that the mana-restoring buff is active on the character
+	ManaSiphonNiagaraComponent = CreateDefaultSubobject<UPassiveNiagaraComponent>("ManaSiphonNiagaraComponent");
+
+	// Attaches the Mana Siphon Niagara component to the EffectAttachComponent rather than directly to the root, 
+	// allowing the effect to benefit from the centralized rotation control provided by EffectAttachComponent (ensuring 
+	// the effect remains properly oriented regardless of character orientation)
+	ManaSiphonNiagaraComponent->SetupAttachment(EffectAttachComponent);
+}
+
+void AFoxCharacterBase::Tick(float DeltaTime)
+{
+	// Calls the Tick function from the parent class to ensure that any necessary updates or logic are executed
+	Super::Tick(DeltaTime);
+	
+	// Locks the EffectAttachComponent's rotation to identity/world space (0, 0, 0 rotation - aligned with world 
+	// axes, facing the world's forward direction with no pitch/roll/yaw) every 
+	// frame, overriding any inherited rotation from its parent (the root component). While the component is attached to 
+	// the root and naturally follows the character's position, this explicit SetWorldRotation call ensures that all passive 
+	// ability Niagara effects attached to it (HaloOfProtection, LifeSiphon, ManaSiphon) remain level and properly oriented 
+	// relative to the world axes regardless of the character's pitch, roll, or yaw. Without this frame-by-frame override, 
+	// the effects would inherit and rotate with the character's capsule, causing them to tilt and appear misaligned when 
+	// the character looks up/down or rotate when the character rotates.
+	EffectAttachComponent->SetWorldRotation(FRotator::ZeroRotator);
 }
 
 void AFoxCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

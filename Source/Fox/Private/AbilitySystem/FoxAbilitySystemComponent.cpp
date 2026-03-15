@@ -724,6 +724,22 @@ void UFoxAbilitySystemComponent::ServerEquipAbility_Implementation(const FGamepl
 					if (IsPassiveAbility(*SpecWithSlot))
 					{
 						/*
+						 * Notify all clients to deactivate the visual effects for the passive ability being cleared from this slot.
+						 * MulticastActivatePassiveEffect() is a replicated multicast RPC that executes on the server and all clients 
+						 * (when it is called on the server),
+						 * broadcasting the ActivatePassiveEffect delegate with the ability tag and activation state. We pass
+						 * GetAbilityTagFromSpec(*SpecWithSlot) to identify which specific passive ability is being cleared by extracting
+						 * the ability tag from the spec currently occupying the slot, and false to indicate the passive should deactivate
+						 * its visual effects. This RPC triggers the MulticastActivatePassiveEffect_Implementation() function which broadcasts
+						 * the ActivatePassiveEffect delegate on all clients. UPassiveNiagaraComponent instances listen to this delegate
+						 * and will deactivate their Niagara particle systems when they receive a broadcast matching their PassiveSpellTag
+						 * with bActivate=false. This ensures passive ability visual effects (like auras, glows, or particle trails) are
+						 * properly cleaned up across all clients when the passive ability is unequipped from the slot, providing clear
+						 * visual feedback that the passive effect is no longer active on the character.
+						 */
+						MulticastActivatePassiveEffect(GetAbilityTagFromSpec(*SpecWithSlot), false);
+						
+						/*
 						 * Broadcast the DeactivatePassiveAbility delegate to request deactivation of the passive ability being cleared from this slot.
 						 * This multicast delegate is listened to by all active passive ability instances.
 						 * We pass GetAbilityTagFromSpec(*SpecWithSlot) to identify which specific passive ability should deactivate by extracting
@@ -774,6 +790,21 @@ void UFoxAbilitySystemComponent::ServerEquipAbility_Implementation(const FGamepl
 					 * ability is first equipped.
 					 */
 					TryActivateAbility(AbilitySpec->Handle);
+					
+					/*
+					 * Notify all clients to activate the visual effects for the passive ability being equipped to this slot.
+					 * MulticastActivatePassiveEffect() is a replicated multicast RPC that executes on the server and all clients
+					 * (when it is called on the server), broadcasting the ActivatePassiveEffect delegate with the ability tag and
+					 * activation state. We pass AbilityTag to identify which specific passive ability is being equipped, and true
+					 * to indicate the passive should activate its visual effects. This RPC triggers the
+					 * MulticastActivatePassiveEffect_Implementation() function which broadcasts the ActivatePassiveEffect delegate
+					 * on all clients. UPassiveNiagaraComponent instances listen to this delegate and will activate their Niagara
+					 * particle systems when they receive a broadcast matching their PassiveSpellTag with bActivate=true. This
+					 * ensures passive ability visual effects (like auras, glows, or particle trails) are properly displayed across
+					 * all clients when the passive ability is equipped for the first time, providing clear visual feedback that
+					 * the passive effect is now active on the character.
+					 */
+					MulticastActivatePassiveEffect(AbilityTag, true);
 				}
 			}
 			/*
@@ -1080,6 +1111,36 @@ void UFoxAbilitySystemComponent::AssignSlotToAbility(FGameplayAbilitySpec& Spec,
 	 * the correct ability. This completes the slot assignment operation started by clearing the previous slot above.
 	 */
 	Spec.GetDynamicSpecSourceTags().AddTag(Slot);
+}
+
+void UFoxAbilitySystemComponent::MulticastActivatePassiveEffect_Implementation(const FGameplayTag& AbilityTag,
+	bool bActivate)
+{
+	/*
+	 * Broadcast the ActivatePassiveEffect multicast delegate to notify all registered listeners that a passive
+	 * ability's activation state has changed.
+	 * 
+	 * This delegate broadcasts two key pieces of information:
+	 * 1. AbilityTag: The gameplay tag identifying which specific passive ability's activation state changed
+	 *    (e.g., "Abilities.Passive.LifeSiphon", "Abilities.Passive.HaloOfProtection"). This allows listeners
+	 *    to identify which passive effect's state has changed. 
+	 * 2. bActivate: A boolean indicating whether the passive ability should activate (true) or deactivate (false).
+	 *    When true, passive effects should start their visual/audio feedback (like activating Niagara particle systems).
+	 *    When false, passive effects should stop their feedback (like deactivating particle systems).
+	 * 
+	 * This broadcast is called from two contexts:
+	 * - When a passive ability is equipped to a slot for the first time (ServerEquipAbility calls this client RPC
+	 *   MulticastActivatePassiveEffect with bActivate=true), causing all clients to activate the passive's visual effects.
+	 * - When a passive ability is cleared from a slot to make room for another ability (ServerEquipAbility calls
+	 *   MulticastActivatePassiveEffect with bActivate=false), causing all clients to deactivate the passive's visual effects.
+	 * 
+	 * Listeners (such as UPassiveNiagaraComponent instances attached to the character) use this broadcast to control
+	 * their Niagara particle systems, activating them when their matching passive ability is equipped and deactivating
+	 * them when the passive is unequipped. This ensures passive ability visual effects (like auras, glows, or particle
+	 * trails) only display when the corresponding passive ability is actively equipped, providing clear visual feedback
+	 * to players about which passive effects are currently active on their character.
+	 */
+	ActivatePassiveEffect.Broadcast(AbilityTag, bActivate);
 }
 
 FGameplayAbilitySpec* UFoxAbilitySystemComponent::GetSpecFromAbilityTag(const FGameplayTag& AbilityTag)

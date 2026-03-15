@@ -52,6 +52,17 @@ DECLARE_MULTICAST_DELEGATE_FourParams(FAbilityEquipped, const FGameplayTag& /*Ab
 // own AbilityTags to determine if they should deactivate.
 DECLARE_MULTICAST_DELEGATE_OneParam(FDeactivatePassiveAbility, const FGameplayTag& /*AbilityTag*/);
 
+// DECLARE_MULTICAST_DELEGATE_TwoParams creates a multicast delegate type that can broadcast to multiple bound functions (C++ only not BP).
+// FActivatePassiveEffect - the name of the delegate type being declared
+// First parameter: const FGameplayTag& - the ability tag identifying which passive ability's visual effect should be activated or deactivated
+// Second parameter: bool - true to activate the passive effect, false to deactivate it
+// This delegate is used to notify passive Niagara components (PassiveNiagaraComponent) that they should activate or deactivate
+// their visual effects based on the ability's state. When a passive ability is equipped/activated or unequipped/deactivated,
+// this delegate is broadcasted to control the corresponding particle effects. Components (UPassiveNiagaraComponent) listen to this delegate and compare
+// the AbilityTag against their PassiveSpellTag to determine if they should respond by activating or deactivating their Niagara system.
+// Bound functions must accept a const reference to FGameplayTag and a bool as their parameters.
+DECLARE_MULTICAST_DELEGATE_TwoParams(FActivatePassiveEffect, const FGameplayTag& /*AbilityTag*/, bool /*bActivate*/);
+
 /**
  * 
  */
@@ -112,6 +123,18 @@ public:
 	 * unequipped or replaced in an input slot.
 	 */
 	FDeactivatePassiveAbility DeactivatePassiveAbility;
+	
+	/**
+	 * Multicast delegate instance that broadcasts when a passive ability's visual effect should be activated or deactivated.
+	 * Bound callbacks receive the ability tag identifying which passive ability's effect to control and a bool indicating
+	 * whether to activate (true) or deactivate (false) the effect.
+	 * Used by passive Niagara components (UPassiveNiagaraComponent) to listen for activation/deactivation requests. When a
+	 * passive ability is equipped or activated, this delegate is broadcasted (via MulticastActivatePassiveEffect) to notify
+	 * all listening passive Niagara components. Components compare the broadcasted AbilityTag against their PassiveSpellTag
+	 * and activate or deactivate their Niagara systems, it it matches their tag. This allows visual effects to be synchronized with the
+	 * passive ability's equipped state without directly coupling the ability system to specific effect components.
+	 */
+	FActivatePassiveEffect ActivatePassiveEffect;
 
 	/**
 	 * Grants an array of gameplay abilities to this ability system component.
@@ -311,6 +334,24 @@ public:
 	 * @param Slot The input slot tag to assign to the ability (e.g., "InputTag.1", "InputTag.LMB")
 	 */
 	static void AssignSlotToAbility(FGameplayAbilitySpec& Spec, const FGameplayTag& Slot);
+	
+	/**
+	 * Multicast RPC that broadcasts passive ability visual effect activation/deactivation requests to all clients.
+	 * UFUNCTION(NetMulticast, Unreliable) ensures this function executes on all clients when called from the server.
+	 * "Unreliable" means the RPC uses UDP-like behavior and is not guaranteed to arrive, which is acceptable for
+	 * visual effects since missing occasional activation calls won't break gameplay (cosmetic effects only).
+	 * This function is called by the server (typically from ServerEquipAbility) when a passive ability is equipped
+	 * or unequipped, and it broadcasts the ActivatePassiveEffect delegate to notify all listening PassiveNiagaraComponents
+	 * that they should activate or deactivate their visual effects if their PassiveSpellTag matches the provided AbilityTag.
+	 * The unreliable nature is suitable here because visual effect synchronization doesn't require guaranteed delivery
+	 * If a packet is lost, the effect may briefly appear incorrect but won't affect game state or mechanics.
+	 * The implementation function will be auto-generated as MulticastActivatePassiveEffect_Implementation.
+	 * 
+	 * @param AbilityTag The gameplay tag identifying which passive ability's effect to control (e.g., "Abilities.Passive.HaloOfProtection")
+	 * @param bActivate True to activate the passive effect's Niagara system, false to deactivate it
+	 */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastActivatePassiveEffect(const FGameplayTag& AbilityTag, bool bActivate);
 	
 	/**
 	 * Function that searches through all granted abilities to find the ability spec matching the specified ability tag.
