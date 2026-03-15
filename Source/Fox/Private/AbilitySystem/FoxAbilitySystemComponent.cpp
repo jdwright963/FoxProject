@@ -116,9 +116,17 @@ void UFoxAbilitySystemComponent::AbilityInputTagPressed(const FGameplayTag& Inpu
 {
 	// Check if the InputTag is not a valid tag that exists in this project. If so, return early.
 	if (!InputTag.IsValid()) return;
-
-	// Lock the ActivatableAbilities container until the for loop is done.
-	FScopedAbilityListLock ScopedAbilityListLock(*this);
+	
+	/*
+	 * Create a scoped lock on this ASC's ability list to ensure thread-safe iteration.
+	 * FScopedAbilityListLock prevents the activatable abilities list of the ASC from being modified (abilities added/removed/changed)
+	 * while we're iterating through it. This is critical in multiplayer games where abilities can be granted
+	 * or revoked from other threads (e.g., server replication, gameplay effects). The lock is automatically
+	 * released when ActiveScopeLock goes out of scope at the end of this function.
+	 * We pass *this with the dereference operator to convert the 'this' pointer to a reference, since the constructor
+	 * expects UAbilitySystemComponent& rather than a pointer.
+	 */
+	FScopedAbilityListLock ActiveScopeLoc(*this);
 	
 	// Loop through the activatable abilities specs that this ASC has
 	for (FGameplayAbilitySpec& AbilitySpec : GetActivatableAbilities())
@@ -221,6 +229,17 @@ void UFoxAbilitySystemComponent::AbilityInputTagHeld(const FGameplayTag& InputTa
 	// Check if the InputTag is not a valid tag that exists in this project. If so, return early.
 	if (!InputTag.IsValid()) return;
 	
+	/*
+	 * Create a scoped lock on this ASC's ability list to ensure thread-safe iteration.
+	 * FScopedAbilityListLock prevents the activatable abilities list of the ASC from being modified (abilities added/removed/changed)
+	 * while we're iterating through it. This is critical in multiplayer games where abilities can be granted
+	 * or revoked from other threads (e.g., server replication, gameplay effects). The lock is automatically
+	 * released when ActiveScopeLock goes out of scope at the end of this function.
+	 * We pass *this with the dereference operator to convert the 'this' pointer to a reference, since the constructor
+	 * expects UAbilitySystemComponent& rather than a pointer.
+	 */
+	FScopedAbilityListLock ActiveScopeLoc(*this);
+	
 	// Loop through the activatable abilities specs that this ASC has
 	for (FGameplayAbilitySpec& AbilitySpec : GetActivatableAbilities())
 	{
@@ -268,8 +287,16 @@ void UFoxAbilitySystemComponent::AbilityInputTagReleased(const FGameplayTag& Inp
 	// Check if the InputTag is not a valid tag that exists in this project. If so, return early.
 	if (!InputTag.IsValid()) return;
 	
-	// Lock the ActivatableAbilities container until the for loop is done.
-	FScopedAbilityListLock ScopedAbilityListLock(*this);
+	/*
+	 * Create a scoped lock on this ASC's ability list to ensure thread-safe iteration.
+	 * FScopedAbilityListLock prevents the activatable abilities list of the ASC from being modified (abilities added/removed/changed)
+	 * while we're iterating through it. This is critical in multiplayer games where abilities can be granted
+	 * or revoked from other threads (e.g., server replication, gameplay effects). The lock is automatically
+	 * released when ActiveScopeLock goes out of scope at the end of this function.
+	 * We pass *this with the dereference operator to convert the 'this' pointer to a reference, since the constructor
+	 * expects UAbilitySystemComponent& rather than a pointer.
+	 */
+	FScopedAbilityListLock ActiveScopeLoc(*this);
 	
 	// Loop through the activatable abilities specs that this ASC has
 	for (FGameplayAbilitySpec& AbilitySpec : GetActivatableAbilities())
@@ -369,10 +396,9 @@ void UFoxAbilitySystemComponent::AbilityInputTagReleased(const FGameplayTag& Inp
 
 void UFoxAbilitySystemComponent::ForEachAbility(const FForEachAbility& Delegate)
 {
-	
 	/*
 	 * Create a scoped lock on this ASC's ability list to ensure thread-safe iteration.
-	 * FScopedAbilityListLock prevents the ability list from being modified (abilities added/removed/changed)
+	 * FScopedAbilityListLock prevents the activatable abilities list of the ASC from being modified (abilities added/removed/changed)
 	 * while we're iterating through it. This is critical in multiplayer games where abilities can be granted
 	 * or revoked from other threads (e.g., server replication, gameplay effects). The lock is automatically
 	 * released when ActiveScopeLock goes out of scope at the end of this function.
@@ -634,68 +660,136 @@ void UFoxAbilitySystemComponent::ServerEquipAbility_Implementation(const FGamepl
 		if (bStatusValid)
 		{
 			/*
-			 * Clear any ability currently occupying the target input slot before equipping the new ability.
-			 * ClearAbilitiesOfSlot() iterates through all granted abilities and removes the Slot tag from any ability
-			 * that currently has it in their dynamic tags. This ensures only one ability can be equipped to each input
-			 * slot at a time. For example, if the player tries to equip a new ability to the LMB slot while another
-			 * ability is already equipped there, this function will unequip the old ability first by removing its
-			 * InputTag.LMB tag, freeing up the slot for the new ability.
+			 * Check if the target slot already has an ability equipped to it that needs to be handled before equipping the new ability.
+			 * SlotIsEmpty() iterates through all this ASC's activatable ability specs to determine if any have the target Slot tag in their dynamic tags.
+			 * If the slot is not empty (returns false), we need to either swap the existing ability out to make room, or detect
+			 * if we're trying to re-equip the same ability to its current slot (which requires no changes). This check prevents
+			 * accidentally overwriting equipped abilities without properly clearing them first, and handles the special case where
+			 * the player clicks the equip button on an ability that's already equipped to the target slot.
 			 */
-			ClearAbilitiesOfSlot(Slot);
-
-			/*
-			 * Remove any previous input slot tag from the ability being equipped.
-			 * ClearSlot() searches through the ability spec's dynamic tags for any tag matching the "InputTag" parent
-			 * tag hierarchy and removes it. This is necessary when moving an ability from one input slot to another
-			 * (e.g., moving an ability from the 1 key to the LMB slot). If we didn't clear the old slot tag first,
-			 * the ability would keep both tags and respond to multiple different inputs simultaneously, which would
-			 * cause incorrect behavior where pressing either the old or new input would activate the same ability.
-			 */
-			ClearSlot(AbilitySpec);
-
-			/*
-			 * Add the new input slot tag to the ability spec's dynamic tags container to bind it to the specified input.
-			 * GetDynamicSpecSourceTags() returns the FGameplayTagContainer where we store runtime tags for this ability spec.
-			 * AddTag() adds the Slot parameter (e.g., "InputTag.LMB", "InputTag.1") to this container, creating the binding
-			 * between this ability and the player's input action. After this line executes, when the player presses the
-			 * corresponding input (handled in AFoxPlayerController::AbilityInputTagPressed/Held/Released), the input system
-			 * will search for abilities with matching input tags and activate this ability. This completes the equip operation
-			 * by establishing the new input-to-ability mapping.
-			 */
-			AbilitySpec->GetDynamicSpecSourceTags().AddTag(Slot);
-
-			/*
-			 * Check if the ability's current status is exactly Unlocked to determine if we need to upgrade it to Equipped.
-			 * MatchesTagExact() returns true only if Status exactly matches Abilities_Status_Unlocked (not just child or parent tags).
-			 * This check handles the case where the player is equipping an ability they previously unlocked but never equipped.
-			 * Abilities can exist in an Unlocked state where they've been purchased with spell points but aren't assigned to
-			 * any input slot yet. When equipping such an ability for the first time, we need to transition its status from
-			 * Unlocked to Equipped so UI systems can display it correctly and the ability becomes usable through player input.
-			 * If the ability is already Equipped (being moved from one slot to another), this block won't execute since the
-			 * status is already correct.
-			 */
-			if (Status.MatchesTagExact(GameplayTags.Abilities_Status_Unlocked))
+			if (!SlotIsEmpty(Slot))
 			{
 				/*
-				 * Remove the Abilities_Status_Unlocked tag from the ability spec's dynamic tags container.
-				 * GetDynamicSpecSourceTags() returns the FGameplayTagContainer where we store runtime status tags for this
-				 * ability spec. RemoveTag() removes the Unlocked status tag because the ability is being equipped and needs
-				 * to transition from "purchased but not equipped" to "equipped and ready to use". This tag removal ensures
-				 * the ability no longer shows the unlocked status in UI systems, preparing it for the equipped status that
-				 * will be added in the next line.
+				 * Retrieve the ability spec currently occupying the target input slot to determine how to handle the equip operation.
+				 * GetSpecWithSlot() searches through all ability specs to find the one with the Slot tag in its dynamic tags,
+				 * returning a pointer to that spec or nullptr if not found (though this should always find a spec since SlotIsEmpty
+				 * returned false). We need this spec to check if it's the same ability being re-equipped (no action needed) or a
+				 * different ability that needs to be cleared from the slot before equipping the new one.
 				 */
-				AbilitySpec->GetDynamicSpecSourceTags().RemoveTag(GameplayTags.Abilities_Status_Unlocked);
-
+				FGameplayAbilitySpec* SpecWithSlot = GetSpecWithSlot(Slot);
+				
 				/*
-				 * Add the Abilities_Status_Equipped tag to the ability spec's dynamic tags container.
-				 * GetDynamicSpecSourceTags() returns the FGameplayTagContainer where we store runtime status tags for this
-				 * ability spec. AddTag() marks this ability with the Equipped status, indicating the player has assigned it
-				 * to an input slot (like LMB, RMB, or number keys) and can now activate it through player input. This status
-				 * transition from Unlocked to Equipped makes the ability fully functional and usable in gameplay, and UI
-				 * systems will update to show the ability as equipped with appropriate visual indicators.
+				 * Verify that we successfully retrieved a valid ability spec from the target slot before proceeding with swap logic.
+				 * This null check is a safety guard that should always pass (since SlotIsEmpty returned false, indicating a spec
+				 * exists), but protects against edge cases where the ability list might have changed between the SlotIsEmpty check
+				 * and now due to threading or replication timing issues. Without this check, attempting to dereference a null
+				 * SpecWithSlot pointer in the following operations would cause a crash. If null somehow, we skip the swap handling
+				 * and proceed to equip the new ability as if the slot were empty.
 				 */
-				AbilitySpec->GetDynamicSpecSourceTags().AddTag(GameplayTags.Abilities_Status_Equipped);
+				if (SpecWithSlot)
+				{
+					/*
+					 * Check if the ability being equipped (identified by AbilityTag) is the same as the ability already occupying
+					 * the target slot. MatchesTagExact() performs an exact equality check between AbilityTag and the ability tag
+					 * extracted from SpecWithSlot. GetAbilityTagFromSpec() retrieves the ability tag from the spec currently in the
+					 * slot by searching through its asset tags (ability tags). If true, this means the player is trying to equip an ability to a
+					 * slot where it's already equipped (clicking the equip button on an already-equipped ability), which requires
+					 * no changes to the ability system but we still notify clients via RPC to ensure UI consistency.
+					 */
+					if (AbilityTag.MatchesTagExact(GetAbilityTagFromSpec(*SpecWithSlot)))
+					{
+						/*
+						 * Notify clients that the ability is already equipped to this slot without making any changes to the ASC.
+						 * ClientEquipAbility() broadcasts the AbilityEquipped delegate on all clients with the ability's current state.
+						 * We pass AbilityTag to identify which ability, Abilities_Status_Equipped to confirm it remains equipped,
+						 * Slot as the new slot (since nothing changed), and PrevSlot (which equals Slot in this case)
+						 * to satisfy the RPC signature. This ensures the spell menu UI refreshes and remains synchronized even when
+						 * the player performs a redundant equip action, preventing UI desync issues where the menu might show incorrect
+						 * slot assignments after clicking equip on an already-equipped ability.
+						 */
+						ClientEquipAbility(AbilityTag, GameplayTags.Abilities_Status_Equipped, Slot, PrevSlot);
+						
+						// Exit the function immediately without making any changes to the ability system or proceeding with the equip logic.
+						return;
+					}
+					/*
+					 * Check if the ability currently occupying the target slot is a passive ability that needs to be deactivated.
+					 * IsPassiveAbility() examines the ability spec's type by looking up its metadata in the AbilityInfo data asset
+					 * and checking if its AbilityType tag matches Abilities_Type_Passive. We dereference SpecWithSlot to pass the actual
+					 * FGameplayAbilitySpec object. Passive abilities are automatically activated when equipped and remain active until
+					 * unequipped, so we must explicitly deactivate them when clearing them from a slot (unlike active abilities that
+					 * only run when the player presses their input). This check ensures we only broadcast the deactivation event for
+					 * abilities that are actually running and listening for it, avoiding unnecessary broadcasts for non-passive abilities.
+					 */
+					if (IsPassiveAbility(*SpecWithSlot))
+					{
+						/*
+						 * Broadcast the DeactivatePassiveAbility delegate to request deactivation of the passive ability being cleared from this slot.
+						 * This multicast delegate is listened to by all active passive ability instances.
+						 * We pass GetAbilityTagFromSpec(*SpecWithSlot) to identify which specific passive ability should deactivate by extracting
+						 * the ability tag from the spec occupying the slot. When broadcasted, this will call ReceiveDeactivate() on the matching
+						 * passive ability instance, which will check if its ability tag matches and then call EndAbility() to terminate itself.
+						 * This ensures passive effects are properly cleaned up when the ability is unequipped from the slot.
+						 */
+						DeactivatePassiveAbility.Broadcast(GetAbilityTagFromSpec(*SpecWithSlot));
+					}
+					/*
+					 * Remove the input slot tag from the ability spec currently occupying the target slot to unequip it and make room.
+					 * ClearSlot() extracts the current slot tag from SpecWithSlot's dynamic tags and removes it, breaking the binding
+					 * between that ability and the input action. This unequips the old ability from the slot, allowing the new ability to
+					 * take over the slot in the AssignSlotToAbility function call below.
+					 */
+					ClearSlot(SpecWithSlot);
+				}
 			}
+			/*
+			 * Check if the ability spec has no input slot tag assigned to it (is not equipped to any input action).
+			 * AbilityHasAnySlot() searches through the spec's dynamic tags to determine if it contains any tag matching
+			 * or descended from the "InputTag" parent tag (like "InputTag.LMB" or "InputTag.1"). The ! operator negates
+			 * the result, so this if statement is true when the ability has no input slot tags, meaning it's unlocked
+			 * but not yet equipped to any input action.
+			 */
+			if (!AbilityHasAnySlot(*AbilitySpec)) 
+			{
+				/*
+				 * Check if this ability is a passive ability that should auto-activate.
+				 * IsPassiveAbility() examines the ability spec's type by looking up its metadata in the AbilityInfo data asset
+				 * and checking if its AbilityType tag matches Abilities_Type_Passive. We dereference AbilitySpec to pass the actual
+				 * FGameplayAbilitySpec object. Passive abilities are designed to provide continuous effects (like stat buffs,
+				 * regeneration, or auras) as long as they're owned by the player, unlike active abilities that only execute when
+				 * the player presses their input. When a passive ability is equipped for the first time it should be immediately
+				 * activated. This check ensures we only auto-activate passive abilities, not active abilities which should
+				 * be triggered by player input.
+				 */
+				if (IsPassiveAbility(*AbilitySpec))
+				{
+					/*
+					 * Activate the passive ability immediately using its unique handle identifier.
+					 * TryActivateAbility() is the core GAS function that runs through all activation checks (cooldowns, costs, tags, etc.)
+					 * and if all checks pass, executes the ability's ActivateAbility() function. For passive abilities, this typically
+					 * applies a gameplay effect that grants stat bonuses or other continuous effects that persist as long as the ability
+					 * remains active. We pass AbilitySpec->Handle, which is a unique identifier for this specific ability instance
+					 * managed by this ASC. Unlike active abilities that wait for player input to activate, passive abilities need to
+					 * start working immediately when unlocked to provide their benefits. This activation happens only once when the
+					 * ability is first equipped.
+					 */
+					TryActivateAbility(AbilitySpec->Handle);
+				}
+			}
+			/*
+			 * Assign the new input slot tag to the ability spec to bind it to the specified input action.
+			 * AssignSlotToAbility() performs two operations: first it calls ClearSlot() to remove any existing input
+			 * tag from the spec's dynamic tags (unbinding it from any previous slot), then it adds the new Slot tag
+			 * to the spec's dynamic tags container. This creates the binding between the ability and the player input,
+			 * ensuring that when the player presses the input corresponding to this Slot tag (e.g., "InputTag.LMB" or
+			 * "InputTag.1"), the input system can find this ability by searching for specs with matching slot tags in
+			 * their dynamic tags and activate it. We dereference the AbilitySpec pointer with * to pass the actual
+			 * FGameplayAbilitySpec object to the function. This function is called after all validation checks have
+			 * passed and after clearing any ability that was previously occupying the target slot, completing the
+			 * equip operation by establishing the new input-to-ability mapping.
+			 */
+			AssignSlotToAbility(*AbilitySpec, Slot);
+			
 			/*
 			 * Mark the ability spec as dirty to trigger replication to clients in multiplayer games.
 			 * MarkAbilitySpecDirty() flags this specific ability spec as having changed, which tells the replication
@@ -753,7 +847,7 @@ void UFoxAbilitySystemComponent::ClientEquipAbility_Implementation(const FGamepl
 	AbilityEquipped.Broadcast(AbilityTag, Status, Slot, PreviousSlot);
 }
 
-FGameplayTag UFoxAbilitySystemComponent::GetInputTagFromAbilityTag(const FGameplayTag& AbilityTag)
+FGameplayTag UFoxAbilitySystemComponent::GetSlotFromAbilityTag(const FGameplayTag& AbilityTag)
 {
 	/*
 	 * Attempt to retrieve the ability spec matching the AbilityTag and check if it exists (is not nullptr).
@@ -782,28 +876,222 @@ FGameplayTag UFoxAbilitySystemComponent::GetInputTagFromAbilityTag(const FGamepl
 	return FGameplayTag();
 }
 
-FGameplayAbilitySpec* UFoxAbilitySystemComponent::GetSpecFromAbilityTag(const FGameplayTag& AbilityTag)
+bool UFoxAbilitySystemComponent::SlotIsEmpty(const FGameplayTag& Slot)
 {
-		
 	/*
 	 * Create a scoped lock on this ASC's ability list to ensure thread-safe iteration.
-	 * FScopedAbilityListLock prevents the ability list from being modified (abilities added/removed/changed)
+	 * FScopedAbilityListLock prevents the activatable abilities list of the ASC from being modified (abilities added/removed/changed)
 	 * while we're iterating through it. This is critical in multiplayer games where abilities can be granted
 	 * or revoked from other threads (e.g., server replication, gameplay effects). The lock is automatically
-	 * released when ActiveScopeLoc goes out of scope at the end of this function.
+	 * released when ActiveScopeLock goes out of scope at the end of this function.
 	 * We pass *this with the dereference operator to convert the 'this' pointer to a reference, since the constructor
-	 * expects UAbilitySystemComponent& rather than a pointer. 
-	 * 
-	 * The dereference operator (*) on a pointer doesn't return
-	 * a "regular value" (which would be a copy). Instead, it returns a value reference to the object the pointer
-	 * points to. This reference can then be used for the reference input parameter (UAbilitySystemComponent&) of the
-	 * ActiveScopeLock() function.
-	 * 
-	 * In C++, when you dereference a pointer with *, you get a reference to the pointed-to object, not a copy.
-	 * So *this produces a reference to the current UFoxAbilitySystemComponent object, which is exactly what the
-	 * FScopedAbilityListLock constructor needs. If we passed 'this' directly (the pointer), it would be a type
-	 * mismatch (pointer vs reference). This function takes a reference, because the lock needs to lock the actual 
-	 * ability list, not a copy of it.
+	 * expects UAbilitySystemComponent& rather than a pointer.
+	 */
+	FScopedAbilityListLock ActiveScopeLoc(*this);
+	
+	/*
+	 * Iterate through all activatable ability specs granted to this ASC.
+	 * GetActivatableAbilities() returns a TArray of FGameplayAbilitySpec representing all abilities this component
+	 * can potentially activate. We use a non-const reference (FGameplayAbilitySpec&) to pass to AbilityHasSlot(),
+	 * though we don't modify the specs in this function.
+	 */
+	for (FGameplayAbilitySpec& AbilitySpec : GetActivatableAbilities())
+	{
+		/*
+		 * Check if the current ability spec has the specified slot tag in its dynamic tags.
+		 * AbilityHasSlot() searches through this spec's dynamic tags to determine if it contains the Slot tag
+		 * (e.g., "InputTag.LMB", "InputTag.1") that identifies the input slot we're checking for occupancy.
+		 * If this returns true, it means an ability is currently equipped to the slot, so the slot is not empty.
+		 */
+		if (AbilityHasSlot(AbilitySpec, Slot))
+		{
+			/*
+			 * Return false immediately to indicate that the slot is occupied by an ability.
+			 * This early return exits the function as soon as we find any ability equipped to the specified slot.
+			 * The false value signals to the caller (such as ServerEquipAbility) that the slot is not empty and
+			 * contains an ability that may need to be cleared or swapped before equipping a different ability there.
+			 */
+			return false;
+		}
+	}
+	/*
+	 * Return true to indicate that the slot is empty and has no abilities equipped to it.
+	 * This return statement is reached only if we've iterated through all activatable abilities without finding
+	 * any that have the specified Slot tag in their dynamic tags. The true value signals to the caller that the
+	 * input slot is available and can safely have an ability equipped to it without needing to clear or swap
+	 * an existing ability first.
+	 */
+	return true;
+}
+
+bool UFoxAbilitySystemComponent::AbilityHasSlot(const FGameplayAbilitySpec& Spec, const FGameplayTag& Slot)
+{
+	/*
+	 * Check if the ability spec's dynamic tags contain an exact match for the specified Slot tag (input tag) and return the result.
+	 * GetDynamicSpecSourceTags() returns the FGameplayTagContainer that holds tags dynamically added to this ability spec
+	 * at runtime, including input tags/slot tags (like "InputTag.LMB" or "InputTag.1") that were added when the ability was
+	 * equipped to an input slot. HasTagExact() performs an exact equality check, returning true only if the Slot tag
+	 * is identical to one of the tags in the container (not just a parent or child tag match). This function serves as
+	 * a helper to determine whether a specific ability is currently equipped to a particular input slot, allowing other
+	 * systems to query and manage input-to-ability mappings efficiently.
+	 */
+	return Spec.GetDynamicSpecSourceTags().HasTagExact(Slot);
+}
+
+bool UFoxAbilitySystemComponent::AbilityHasAnySlot(const FGameplayAbilitySpec& Spec)
+{
+	/*
+	 * Check if the ability spec's dynamic tags contain any tag that matches or is a child of the "InputTag" parent tag.
+	 * GetDynamicSpecSourceTags() returns the FGameplayTagContainer that holds tags dynamically added to this ability spec
+	 * at runtime, including input tags/slot tags (like "InputTag.LMB", "InputTag.1", "InputTag.RMB") that were added when the
+	 * ability was equipped to any input slot. HasTag() performs a hierarchical match, returning true if the container has
+	 * any tag that exactly matches "InputTag" or is a descendant of it (e.g., "InputTag.LMB" matches parent "InputTag").
+	 * FGameplayTag::RequestGameplayTag(FName("InputTag")) looks up the "InputTag" parent tag from the project's tag registry
+	 * at runtime. This function serves as a helper to determine whether an ability is currently equipped to any input slot
+	 * at all, regardless of which specific slot it's in. This is useful for checking if an ability is active/equipped versus
+	 * being unlocked but not yet assigned to any input, allowing systems to distinguish between equipped abilities that can
+	 * be activated through player input and unequipped abilities that are owned but not currently usable.
+	 */
+	return Spec.GetDynamicSpecSourceTags().HasTag(FGameplayTag::RequestGameplayTag(FName("InputTag")));
+}
+
+FGameplayAbilitySpec* UFoxAbilitySystemComponent::GetSpecWithSlot(const FGameplayTag& Slot)
+{
+	/*
+	 * Create a scoped lock on this ASC's ability list to ensure thread-safe iteration.
+	 * FScopedAbilityListLock prevents the activatable abilities list of the ASC from being modified (abilities added/removed/changed)
+	 * while we're iterating through it. This is critical in multiplayer games where abilities can be granted
+	 * or revoked from other threads (e.g., server replication, gameplay effects). The lock is automatically
+	 * released when ActiveScopeLock goes out of scope at the end of this function.
+	 * We pass *this with the dereference operator to convert the 'this' pointer to a reference, since the constructor
+	 * expects UAbilitySystemComponent& rather than a pointer.
+	 */
+	FScopedAbilityListLock ActiveScopeLock(*this);
+	
+	/*
+	 * Iterate through all activatable ability specs granted to this ASC.
+	 * GetActivatableAbilities() returns a TArray of FGameplayAbilitySpec representing all abilities this ASC
+	 * can potentially activate. We use a non-const reference (FGameplayAbilitySpec&) because we need to return a
+	 * pointer to the spec if found, and returning a pointer to a const spec would prevent the caller from modifying
+	 * it through the returned pointer.
+	 */
+	for (FGameplayAbilitySpec& AbilitySpec : GetActivatableAbilities())
+	{
+		/*
+		 * Check if this ability spec's dynamic tags contain an exact match for the Slot tag.
+		 * GetDynamicSpecSourceTags() returns the FGameplayTagContainer holding tags dynamically added to this spec
+		 * at runtime, including input tags/slot tags (like "InputTag.LMB" or "InputTag.1") added when the ability was
+		 * equipped to an input slot. HasTagExact() performs an exact equality check, returning true only if the Slot
+		 * tag is identical to one of the tags in the container (not just a parent or child tag match). This ensures
+		 * we find the specific ability equipped to the exact input slot we're searching for.
+		 */
+		if (AbilitySpec.GetDynamicSpecSourceTags().HasTagExact(Slot))
+		{
+			/*
+			 * Return a pointer to the matching ability spec immediately upon finding a match.
+			 * We use the address-of operator (&) to convert the AbilitySpec reference to a pointer, which allows
+			 * the caller to modify the spec if needed (e.g., clearing its slot tag or changing its status).
+			 * This early return exits the function as soon as we find the first (and should be only) ability
+			 * equipped to the specified slot.
+			 */
+			return &AbilitySpec;
+		}
+	}
+	/*
+	 * Return nullptr if no ability spec was found with the specified Slot tag/input tag.
+	 * This return statement is reached only if we've iterated through all activatable abilities without finding
+	 * any that have the Slot tag/input tag in their dynamic tags. The nullptr value signals to the caller (such as
+	 * ServerEquipAbility) that the specified input slot is empty and has no ability currently equipped to it.
+	 * Callers should check for nullptr before attempting to dereference the returned pointer to avoid crashes.
+	 */
+	return nullptr;
+}
+
+bool UFoxAbilitySystemComponent::IsPassiveAbility(const FGameplayAbilitySpec& Spec) const
+{
+	/*
+	 * Retrieve the AbilityInfo data asset that contains metadata for all abilities in the game.
+	 * UFoxAbilitySystemLibrary::GetAbilityInfo() is a static utility function that looks up the project's ability
+	 * information data asset, which stores metadata like ability tags, types (passive, active, offensive), level
+	 * requirements, descriptions, and icons. We pass GetAvatarActor() as the world context object to retrieve the
+	 * AbilityInfo from the correct world. This data asset is needed to determine if the ability is classified as
+	 * a passive type by checking its AbilityType tag in the metadata.
+	 */
+	const UAbilityInfo* AbilityInfo = UFoxAbilitySystemLibrary::GetAbilityInfo(GetAvatarActor());
+
+	/*
+	 * Extract the ability tag from the ability spec to identify which ability we're checking.
+	 * GetAbilityTagFromSpec() searches through the spec's asset tags (ability tags) to find and return the tag that identifies
+	 * this specific ability (e.g., "Abilities.Fire", "Abilities.Passive.LifeSiphon"). This tag is needed to look up
+	 * the ability's metadata in the AbilityInfo data asset in the next step.
+	 */
+	const FGameplayTag AbilityTag = GetAbilityTagFromSpec(Spec);
+
+	/*
+	 * Look up the ability's metadata struct from the AbilityInfo data asset using the ability tag.
+	 * FindAbilityInfoForTag() searches through the AbilityInformation array in the data asset and returns a const
+	 * reference to the FFoxAbilityInfo struct that matches the AbilityTag. This struct contains all metadata for
+	 * the ability, including its AbilityType tag which categorizes it as passive or offensive. We store
+	 * this as a const reference to avoid copying the entire struct and to clearly indicate we're only reading data.
+	 */
+	const FFoxAbilityInfo& Info = AbilityInfo->FindAbilityInfoForTag(AbilityTag);
+
+	/*
+	 * Extract the AbilityType tag from the ability's metadata struct.
+	 * Info.AbilityType is a FGameplayTag field in the FFoxAbilityInfo struct that categorizes what type of ability
+	 * this is (e.g., "Abilities.Type.Passive", "Abilities.Type.Offensive"). This tag is
+	 * configured in the AbilityInfo data asset blueprint for each ability and determines how the ability system
+	 * handles activation and deactivation of the ability.
+	 */
+	const FGameplayTag AbilityType = Info.AbilityType;
+
+	/*
+	 * Check if the ability's type tag exactly matches the Abilities_Type_Passive tag and return the result.
+	 * MatchesTagExact() performs an exact equality check, returning true only if AbilityType is identical to
+	 * FFoxGameplayTags::Get().Abilities_Type_Passive (not just a parent or child tag match). This determines whether
+	 * the ability should be treated as a passive ability (auto-activated and listening for deactivation events) or
+	 * as a regular active ability (activated through player input). Passive abilities are typically used for persistent
+	 * effects like auras, regeneration, or stat modifiers that remain active as long as they're equipped.
+	 */
+	return AbilityType.MatchesTagExact(FFoxGameplayTags::Get().Abilities_Type_Passive);
+}
+
+void UFoxAbilitySystemComponent::AssignSlotToAbility(FGameplayAbilitySpec& Spec, const FGameplayTag& Slot)
+{
+	/*
+	 * Remove any existing input slot tag from the ability spec before assigning the new slot.
+	 * ClearSlot() removes the current input tag (if any) from the spec's dynamic tags. This is necessary when moving an
+	 * ability from one input slot to another. We must first unbind it from its previous slot before binding it to the new
+	 * slot. This ensures the ability is not bound to multiple input slots simultaneously. If the ability has no previous
+	 * slot assignment, ClearSlot() will simply remove nothing and have no effect. We pass a pointer to the Spec using 
+	 * the address-of operator (&) so ClearSlot can access and modify the spec's dynamic tags container. Eventhough
+	 * Spec could be modified already, since it is a reference, we pass a pointer, because ClearSlot's function signature 
+	 * requires a pointer.
+	 */
+	ClearSlot(&Spec);
+
+	/*
+	 * Add the new input slot tag to the ability spec's dynamic tags container to bind the ability to the specified input.
+	 * GetDynamicSpecSourceTags() returns the FGameplayTagContainer where we store runtime tags for this ability spec,
+	 * including input/slot tags that determine which player input activates this ability. AddTag() inserts the Slot tag
+	 * (e.g., "InputTag.LMB", "InputTag.1") into this container, creating the binding between the ability and the input
+	 * action. After this call, when the player presses the input corresponding to this slot tag, the input system will
+	 * search through abilities and find this spec with the matching slot tag in its dynamic tags, allowing it to activate
+	 * the correct ability. This completes the slot assignment operation started by clearing the previous slot above.
+	 */
+	Spec.GetDynamicSpecSourceTags().AddTag(Slot);
+}
+
+FGameplayAbilitySpec* UFoxAbilitySystemComponent::GetSpecFromAbilityTag(const FGameplayTag& AbilityTag)
+{
+	/*
+	 * Create a scoped lock on this ASC's ability list to ensure thread-safe iteration.
+	 * FScopedAbilityListLock prevents the activatable abilities list of the ASC from being modified (abilities added/removed/changed)
+	 * while we're iterating through it. This is critical in multiplayer games where abilities can be granted
+	 * or revoked from other threads (e.g., server replication, gameplay effects). The lock is automatically
+	 * released when ActiveScopeLock goes out of scope at the end of this function.
+	 * We pass *this with the dereference operator to convert the 'this' pointer to a reference, since the constructor
+	 * expects UAbilitySystemComponent& rather than a pointer.
 	 */
 	FScopedAbilityListLock ActiveScopeLoc(*this);
 
@@ -817,7 +1105,6 @@ FGameplayAbilitySpec* UFoxAbilitySystemComponent::GetSpecFromAbilityTag(const FG
 	 */
 	for (FGameplayAbilitySpec& AbilitySpec : GetActivatableAbilities())
 	{
-		
 		/*
 		 * Iterate through all ability tags defined on this ability's class to check for a match with the input parameter.
 		 * 
@@ -1363,27 +1650,13 @@ void UFoxAbilitySystemComponent::ClearSlot(FGameplayAbilitySpec* Spec)
 	 * performed when moving an ability to a different slot or when clearing a slot to make room for a different ability.
 	 */
 	Spec->GetDynamicSpecSourceTags().RemoveTag(Slot);
-
-	/*
-	 * Mark the ability spec as dirty to trigger replication to clients in multiplayer games.
-	 * MarkAbilitySpecDirty() flags this specific ability spec as having changed, which tells the replication
-	 * system to include it in the next network update sent to clients. This ensures that when playing in
-	 * multiplayer (listen server or dedicated server), the cleared input slot binding will replicate from
-	 * the server to all clients, keeping the ability state synchronized across all connected players. This
-	 * replication allows clients to accurately update their UI elements (like spell globes and ability bars)
-	 * to reflect that the ability is no longer bound to its previous input slot. Without this call, clients
-	 * wouldn't receive the updated ability spec until the next full ability array replication, causing desync
-	 * between what the server knows and what clients see in their UI. We pass *Spec with the dereference operator to 
-	 * convert the Spec pointer to a reference, since this function expects a reference rather than a pointer.
-	 */
-	MarkAbilitySpecDirty(*Spec);
 }
 
 void UFoxAbilitySystemComponent::ClearAbilitiesOfSlot(const FGameplayTag& Slot)
 {
 	/*
 	 * Create a scoped lock on this ASC's ability list to ensure thread-safe iteration.
-	 * FScopedAbilityListLock prevents the ability list from being modified (abilities added/removed/changed)
+	 * FScopedAbilityListLock prevents the activatable abilities list of the ASC from being modified (abilities added/removed/changed)
 	 * while we're iterating through it. This is critical in multiplayer games where abilities can be granted
 	 * or revoked from other threads (e.g., server replication, gameplay effects). The lock is automatically
 	 * released when ActiveScopeLock goes out of scope at the end of this function.
@@ -1409,7 +1682,7 @@ void UFoxAbilitySystemComponent::ClearAbilitiesOfSlot(const FGameplayTag& Slot)
 		 * this ability is currently equipped to the input slot we want to clear, and we need to remove its
 		 * slot tag in the next step.
 		 */
-		if (AbilityHasSlot(&Spec, Slot))
+		if (AbilityHasSlot(Spec, Slot))
 		{
 			/*
 			 * Remove the slot tag from this ability spec to clear its input binding.
@@ -1422,44 +1695,6 @@ void UFoxAbilitySystemComponent::ClearAbilitiesOfSlot(const FGameplayTag& Slot)
 			ClearSlot(&Spec);
 		}
 	}
-}
-
-bool UFoxAbilitySystemComponent::AbilityHasSlot(FGameplayAbilitySpec* Spec, const FGameplayTag& Slot)
-{
-	/*
-	 * Iterate through all gameplay tags in the ability spec's dynamic tags container to search for a slot tag match.
-	 * GetDynamicSpecSourceTags() returns a FGameplayTagContainer that holds tags dynamically added to this ability spec
-	 * at runtime, including input slot tags (like "InputTag.LMB" or "InputTag.1") that were added when the ability was
-	 * equipped. We iterate through each tag to check if any of them match the Slot parameter we're searching for.
-	 * Each Tag in the container is copied during iteration (not a reference), which is acceptable for lightweight
-	 * FGameplayTag structs.
-	 */
-	for (FGameplayTag Tag : Spec->GetDynamicSpecSourceTags())
-	{
-		/*
-		 * Check if this tag exactly matches the Slot tag we're searching for.
-		 * MatchesTagExact() performs an exact equality check. It returns true only if Tag is identical to Slot
-		 * (not just a parent or child tag match). This ensures we find the specific input slot tag we're looking for,
-		 * such as "InputTag.LMB" or "InputTag.1", without matching related tags like "InputTag" or "InputTag.RMB".
-		 */
-		if (Tag.MatchesTagExact(Slot))
-		{
-			/*
-			 * Return true immediately to indicate that this ability spec has the specified slot tag.
-			 * This early return exits the function as soon as we find a match. The true value signals to the caller 
-			 * (ClearAbilitiesOfSlot) that this ability is currently equipped to the input slot being queried.
-			 */
-			return true;
-		}
-	}
-	/*
-	 * Return false to indicate that this ability spec does not have the specified slot tag.
-	 * This return statement is reached only if we've iterated through all dynamic tags without finding an exact
-	 * match to the Slot parameter. The false value signals to the caller that this ability is not currently
-	 * equipped to the input slot being queried, so it should be left alone when clearing abilities from that slot.
-	 * This distinguishes abilities equipped to different slots from the one being cleared.
-	 */
-	return false;
 }
 
 void UFoxAbilitySystemComponent::OnRep_ActivateAbilities()

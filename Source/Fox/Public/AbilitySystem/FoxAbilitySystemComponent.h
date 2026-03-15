@@ -227,18 +227,90 @@ public:
 	 * @return The ability's current status gameplay tag, or an empty tag if the ability is not found
 	 */
 	FGameplayTag GetStatusFromAbilityTag(const FGameplayTag& AbilityTag);
-
+	
 	/**
-	 * Retrieves the input tag bound to an ability with the specified ability tag.
+	 * Retrieves the input/slot tag bound to an ability with the specified ability tag.
 	 * This function searches through all granted abilities to find the ability spec matching the specified ability tag,
-	 * then extracts and returns its input tag from the dynamic tags (e.g., "InputTag.LMB", "InputTag.1").
+	 * then extracts and returns its input/slot tag from the dynamic tags (e.g., "InputTag.LMB", "InputTag.1").
 	 * The input tag represents which input action is bound to activate this ability.
 	 * Returns an empty tag if the ability is not found or has no input binding.
 	 * 
 	 * @param AbilityTag The gameplay tag identifying the ability to query (e.g., "Abilities.Fire.FireBolt")
-	 * @return The ability's input binding gameplay tag, or an empty tag if the ability is not found or unbound
+	 * @return The ability's input/slot gameplay tag, or an empty tag if the ability is not found or unbound
 	 */
-	FGameplayTag GetInputTagFromAbilityTag(const FGameplayTag& AbilityTag);
+	FGameplayTag GetSlotFromAbilityTag(const FGameplayTag& AbilityTag);
+	
+	/**
+	 * Checks whether the specified input slot is currently empty (has no ability assigned to it).
+	 * This function iterates through all granted abilities to see if any ability has the specified Slot tag
+	 * in its dynamic tags. Returns true if no abilities are found with that slot assignment, false otherwise.
+	 * Used to validate whether a slot is available for assignment (or if it needs to be cleared) before equipping an ability to it.
+	 * 
+	 * @param Slot The input/slot tag to check (e.g., "InputTag.1", "InputTag.LMB")
+	 * @return True if no ability is currently assigned to the slot, false if an ability occupies it
+	 */
+	bool SlotIsEmpty(const FGameplayTag& Slot);
+
+	/**
+	 * Checks whether the specified ability spec has the given slot tag in its dynamic tags.
+	 * Returns true if the ability spec's dynamic tags contain the specified Slot tag, false otherwise.
+	 * This static utility function is used to query whether an ability is currently equipped to a specific
+	 * input slot.
+	 * 
+	 * @param Spec The ability spec to check
+	 * @param Slot The input/slot tag to search for (e.g., "InputTag.1", "InputTag.LMB")
+	 * @return True if the ability spec contains the specified slot tag, false otherwise
+	 */
+	static bool AbilityHasSlot(const FGameplayAbilitySpec& Spec, const FGameplayTag& Slot);
+
+	/**
+	 * Checks whether the specified ability spec has any input slot tag assigned to it.
+	 * This function searches the ability spec's dynamic tags to determine if it contains any tag matching
+	 * the "InputTag" pattern, indicating the ability is equipped to some input slot.
+	 * Returns true if the ability has at least one (should be only one) slot assignment, false if it has none.
+	 * Used to determine if an ability is currently equipped to any slot or is unequipped.
+	 * 
+	 * @param Spec The ability spec to check for slot assignments
+	 * @return True if the ability spec has any input slot tag, false otherwise
+	 */
+	static bool AbilityHasAnySlot(const FGameplayAbilitySpec& Spec);
+
+	/**
+	 * Retrieves the ability spec that is currently assigned to the specified input slot.
+	 * This function searches through all granted abilities to find the ability spec that has the specified
+	 * Slot tag in its dynamic tags. Returns a pointer to the matching ability spec if found, or nullptr
+	 * if no ability is currently equipped to that slot.
+	 * Used to query which ability occupies a given input slot, typically before reassigning or swapping abilities.
+	 * 
+	 * @param Slot The input/slot tag to search for (e.g., "InputTag.1", "InputTag.LMB")
+	 * @return Pointer to the ability spec assigned to the slot, or nullptr if the slot is empty
+	 */
+	FGameplayAbilitySpec* GetSpecWithSlot(const FGameplayTag& Slot);
+
+	/**
+	 * Checks whether the specified ability spec represents a passive ability.
+	 * This function examines the ability spec's ability tags to determine if it contains a tag indicating
+	 * passive ability classification (typically "Abilities.Type.Passive").
+	 * Returns true if the ability is passive, false otherwise.
+	 * Used to differentiate passive abilities (which auto-activate)
+	 * from abilities (which require player input to activate and are equipped to slots).
+	 * 
+	 * @param Spec The ability spec to check
+	 * @return True if the ability is a passive ability, false otherwise
+	 */
+	bool IsPassiveAbility(const FGameplayAbilitySpec& Spec) const;
+
+	/**
+	 * Assigns the specified input slot tag to the given ability spec's dynamic tags.
+	 * This function adds the Slot tag to the ability spec's dynamic tags container, effectively equipping
+	 * the ability to that input slot. The slot tag will be used by input handling functions (AbilityInputTagHeld,
+	 * AbilityInputTagPressed, AbilityInputTagReleased) to identify and activate the ability when the corresponding
+	 * input action is triggered. This function does not clear previous slot assignments. Use ClearSlot first if needed.
+	 * 
+	 * @param Spec The ability spec to assign the slot to
+	 * @param Slot The input slot tag to assign to the ability (e.g., "InputTag.1", "InputTag.LMB")
+	 */
+	static void AssignSlotToAbility(FGameplayAbilitySpec& Spec, const FGameplayTag& Slot);
 	
 	/**
 	 * Function that searches through all granted abilities to find the ability spec matching the specified ability tag.
@@ -359,7 +431,7 @@ public:
 	 * 
 	 * @param Spec Pointer to the ability spec whose slot tag should be cleared
 	 */
-	void ClearSlot(FGameplayAbilitySpec* Spec);
+	static void ClearSlot(FGameplayAbilitySpec* Spec);
 
 	/**
 	 * Removes the specified input slot tag from all ability specs that have it in their dynamic tags.
@@ -371,18 +443,6 @@ public:
 	 * @param Slot The input slot tag to remove from all abilities (e.g., "InputTag.1", "InputTag.LMB")
 	 */
 	void ClearAbilitiesOfSlot(const FGameplayTag& Slot);
-
-	/**
-	 * Checks whether the specified ability spec has the given slot tag in its dynamic tags.
-	 * Returns true if the ability spec's dynamic tags contain the specified Slot tag, false otherwise.
-	 * This static utility function is used to query whether an ability is currently equipped to a specific
-	 * input slot.
-	 * 
-	 * @param Spec Pointer to the ability spec to check
-	 * @param Slot The input slot tag to search for (e.g., "InputTag.1", "InputTag.LMB")
-	 * @return True if the ability spec contains the specified slot tag, false otherwise
-	 */
-	static bool AbilityHasSlot(FGameplayAbilitySpec* Spec, const FGameplayTag& Slot);
 	
 protected:
 	

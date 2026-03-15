@@ -349,10 +349,12 @@ void USpellMenuWidgetController::EquipButtonPressed()
 	// properly handle moving the ability from its current slot to the new slot the player selects
 	if (SelectedStatus.MatchesTagExact(FFoxGameplayTags::Get().Abilities_Status_Equipped))
 	{
-		// Retrieve the input tag (e.g., "InputTag.1", "InputTag.LMB") of the slot that the selected ability is currently
-		// equipped to, and store it in the SelectedSlot member variable. This information is needed by the server RPC
-		// (ServerEquipAbility) to properly unequip the ability from its current slot before equipping it to the new slot
-		SelectedSlot = GetFoxASC()->GetInputTagFromAbilityTag(SelectedAbility.Ability);
+		// Retrieve the input/slot tag (e.g., "InputTag.1", "InputTag.LMB") of the slot (we use slot and input tag interchangeably
+		// here because a slot is assigned and input tag and an ability with an ability tag gets assigned to that slot) 
+		// that the selected ability is currently equipped to, and store it in the SelectedSlot member variable. This 
+		// information is needed by the server RPC (ServerEquipAbility) to properly unequip the ability from its current
+		// slot before equipping it to the new slot
+		SelectedSlot = GetFoxASC()->GetSlotFromAbilityTag(SelectedAbility.Ability);
 	}
 }
 
