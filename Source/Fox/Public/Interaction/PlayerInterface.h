@@ -97,4 +97,46 @@ public:
 	// Function to handle character leveling up this is overriden in FoxCharacter.h 
 	UFUNCTION(BlueprintNativeEvent)
 	void LevelUp();
+	
+	/**
+	 * ShowMagicCircle - Displays the magic circle decal for targeting and ability placement
+	 * 
+	 * This interface function is overridden in FoxCharacter.h to show a visual magic circle
+	 * that follows the cursor and projects onto surfaces. The magic circle provides visual
+	 * feedback during ability targeting and placement, allowing players to see where their
+	 * ability will be cast.
+	 * 
+	 * The actual implementation in AFoxCharacter calls AFoxPlayerController::ShowMagicCircle(),
+	 * which spawns and manages an AMagicCircle actor with a decal component.
+	 * 
+	 * BLUEPRINTNATIVEEVENT & BLUEPRINTCALLABLE:
+	 * - You override it in C++ by writing ShowMagicCircle_Implementation()
+	 * - You can also override it in Blueprint
+	 * - Blueprint overrides replace the C++ version
+	 * - Can be called from Blueprint graphs
+	 * 
+	 * @param DecalMaterial Optional material to customize the magic circle's appearance.
+	 *                      If nullptr, then uses the default material set in the AMagicCircle blueprint.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void ShowMagicCircle(UMaterialInterface* DecalMaterial = nullptr);
+
+	/**
+	 * HideMagicCircle - Hides the magic circle decal when targeting or ability placement is complete
+	 * 
+	 * This interface function is overridden in FoxCharacter.h to hide the magic circle visual
+	 * that was previously shown with ShowMagicCircle(). Typically called when the player finishes targeting,
+	 * cancels an ability, or completes ability placement.
+	 * 
+	 * The actual implementation in AFoxCharacter calls AFoxPlayerController::HideMagicCircle(),
+	 * which destroys or hides the AMagicCircle actor.
+	 * 
+	 * BLUEPRINTNATIVEEVENT & BLUEPRINTCALLABLE:
+	 * - You override it in C++ by writing HideMagicCircle_Implementation()
+	 * - You can also override it in Blueprint
+	 * - Blueprint overrides replace the C++ version
+	 * - Can be called from Blueprint graphs
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void HideMagicCircle();
 };

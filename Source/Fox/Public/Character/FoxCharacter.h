@@ -120,6 +120,61 @@ public:
 	// PlayerInterface.h and overriden here
 	virtual int32 GetSpellPoints_Implementation() const override;
 	
+	
+	/**
+	 * ShowMagicCircle_Implementation - Implementation of the IPlayerInterface::ShowMagicCircle function
+	 * 
+	 * This function delegates the request to show the magic circle targeting decal to the PlayerController.
+	 * It serves as a bridge between the Ability System (which may trigger targeting visualization) and
+	 * the PlayerController (which owns and manages the magic circle actor).
+	 * 
+	 * FLOW:
+	 * 1. Ability System or Blueprint calls ShowMagicCircle() on the character (through IPlayerInterface)
+	 * 2. This function receives the call and forwards it to the PlayerController
+	 * 3. PlayerController spawns/shows the AMagicCircle actor and updates its position to follow the cursor
+	 * 4. The magic circle decal projects onto surfaces for visual feedback during ability targeting
+	 * 
+	 * WHY DELEGATE TO PLAYERCONTROLLER?
+	 * - PlayerController handles cursor position and world interaction
+	 * - PlayerController owns the magic circle actor instance
+	 * - Separates character logic from UI/targeting visualization concerns
+	 * - PlayerController updates magic circle position every frame based on cursor location
+	 * 
+	 * Note: This is the C++ implementation of a BlueprintNativeEvent. Blueprint can override this,
+	 * but if not overridden, this C++ version executes.
+	 * 
+	 * @param DecalMaterial Optional material to override the default magic circle appearance, nullptr uses the default
+	 */
+	virtual void ShowMagicCircle_Implementation(UMaterialInterface* DecalMaterial) override;
+
+	/**
+	 * HideMagicCircle_Implementation - Implementation of the IPlayerInterface::HideMagicCircle function
+	 * 
+	 * This function delegates the request to hide the magic circle targeting decal to the PlayerController.
+	 * It serves as a bridge between the Ability System (which completes targeting) and the PlayerController
+	 * (which owns and manages the magic circle actor).
+	 * 
+	 * FLOW:
+	 * 1. Ability System or Blueprint calls HideMagicCircle() on the character (through IPlayerInterface)
+	 * 2. This function receives the call and forwards it to the PlayerController
+	 * 3. PlayerController destroys or hides the AMagicCircle actor
+	 * 4. The magic circle decal is removed from the world, indicating targeting is complete
+	 * 
+	 * WHY DELEGATE TO PLAYERCONTROLLER?
+	 * - PlayerController owns the magic circle actor instance
+	 * - Separates character logic from UI/targeting visualization concerns
+	 * - Centralizes targeting visualization management in one place
+	 * 
+	 * TYPICAL USAGE:
+	 * - Called when an ability targeting phase ends (ability activated or cancelled)
+	 * - Called when switching between different targeting modes
+	 * - Called when character dies or loses control
+	 * 
+	 * Note: This is the C++ implementation of a BlueprintNativeEvent. Blueprint can override this,
+	 * but if not overridden, this C++ version executes.
+	 */
+	virtual void HideMagicCircle_Implementation() override;
+	
 	/** end Player Interface */
 	
 	/** Combat Interface */

@@ -36,9 +36,10 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ShowDamageNumber(float DamageAmount, ACharacter* TargetCharacter, bool bBlockedHit, bool bCriticalHit);
 	
-	// Blueprint callable function that makes the magic circle decal visible, used for targeting or ability placement
+	// Blueprint callable function that displays the magic circle decal for targeting and ability placement
+	// DecalMaterial - Optional material to override the default decal appearance, defaults to the material set in the blueprint if nullptr
 	UFUNCTION(BlueprintCallable)
-	void ShowMagicCircle();
+	void ShowMagicCircle(UMaterialInterface* DecalMaterial = nullptr);
 
 	// Blueprint callable function that hides the magic circle decal, called when targeting or ability placement is complete
 	UFUNCTION(BlueprintCallable)

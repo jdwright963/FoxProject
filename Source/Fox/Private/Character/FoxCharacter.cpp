@@ -691,6 +691,81 @@ int32 AFoxCharacter::GetSpellPoints_Implementation() const
 	return FoxPlayerState->GetSpellPoints();
 }
 
+void AFoxCharacter::ShowMagicCircle_Implementation(UMaterialInterface* DecalMaterial)
+{
+	/**
+	 * Cast the character's controller to AFoxPlayerController and perform null-check in one statement
+	 * 
+	 * GetController() returns the AController that is possessing this character
+	 * Cast<AFoxPlayerController>(...) safely casts it to our custom player controller class
+	 * 
+	 * Why this cast might fail (return nullptr):
+	 * - AI-controlled characters use AIController instead of AFoxPlayerController
+	 * - During level transitions or respawns, the controller might not be fully initialized yet
+	 * - Only player-controlled characters have an AFoxPlayerController
+	 * 
+	 * This check ensures we only show the magic circle for player-controlled characters
+	 */
+	if (AFoxPlayerController* FoxPlayerController = Cast<AFoxPlayerController>(GetController()))
+	{
+		/**
+		 * Forward the magic circle display request to the player controller
+		 * 
+		 * AFoxPlayerController::ShowMagicCircle() handles:
+		 * - Spawning or activating the AMagicCircle actor if it doesn't exist
+		 * - Setting the decal material to the provided DecalMaterial (or default if nullptr)
+		 * - Making the magic circle visible for targeting and ability placement
+		 * - Updating the magic circle's position to follow the cursor in UpdateMagicCircleLocation()
+		 * 
+		 * The player controller manages the magic circle because:
+		 * - It owns the spawned AMagicCircle instance
+		 * - It has access to cursor trace information needed for positioning
+		 * - It separates targeting visualization logic from character gameplay logic
+		 * 
+		 * @param DecalMaterial The material to apply to the magic circle decal, or nullptr to use default
+		 */
+		FoxPlayerController->ShowMagicCircle(DecalMaterial);
+	}
+}
+
+void AFoxCharacter::HideMagicCircle_Implementation()
+{
+	/**
+	 * Cast the character's controller to AFoxPlayerController and perform null-check in one statement
+	 * 
+	 * GetController() returns the AController that is possessing this character
+	 * Cast<AFoxPlayerController>(...) safely casts it to our custom player controller class
+	 * 
+	 * Why this cast might fail (return nullptr):
+	 * - AI-controlled characters use AIController instead of AFoxPlayerController
+	 * - During level transitions or respawns, the controller might not be fully initialized yet
+	 * - Only player-controlled characters have an AFoxPlayerController
+	 * 
+	 * This check ensures we only hide the magic circle for player-controlled characters
+	 */
+	if (AFoxPlayerController* FoxPlayerController = Cast<AFoxPlayerController>(GetController()))
+	{
+		/**
+		 * Forward the magic circle hide request to the player controller
+		 * 
+		 * AFoxPlayerController::HideMagicCircle() handles:
+		 * - Deactivating or hiding the AMagicCircle actor if it exists
+		 * - Stopping the magic circle from following the cursor position
+		 * - Cleaning up targeting visualization when ability placement is complete
+		 * 
+		 * The player controller manages the magic circle lifecycle because:
+		 * - It owns the spawned AMagicCircle instance
+		 * - It has access to cursor trace information needed for positioning
+		 * - It separates targeting visualization logic from character gameplay logic
+		 * 
+		 * This is typically called when:
+		 * - An ability finishes casting and no longer needs targeting visualization
+		 * - The player cancels ability targeting
+		 */
+		FoxPlayerController->HideMagicCircle();
+	}
+}
+
 int32 AFoxCharacter::GetPlayerLevel_Implementation()
 {
 	/**

@@ -11,6 +11,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "AbilitySystem/FoxAbilitySystemComponent.h"
 #include "Actor/MagicCircle.h"
+#include "Components/DecalComponent.h"
 #include "Components/SplineComponent.h"
 #include "GameFramework/Character.h"
 #include "Input/FoxInputComponent.h"
@@ -39,13 +40,50 @@ void AFoxPlayerController::PlayerTick(float DeltaTime)
 	UpdateMagicCircleLocation();
 }
 
-void AFoxPlayerController::ShowMagicCircle()
+void AFoxPlayerController::ShowMagicCircle(UMaterialInterface* DecalMaterial)
 {
 	// Checks if the MagicCircle actor has not been spawned yet or has been destroyed since the last call to ShowMagicCircle()
 	if (!IsValid(MagicCircle))
 	{
 		// Spawns a new instance of the AMagicCircle actor class in the world using the MagicCircleClass template set in the blueprint
 		MagicCircle = GetWorld()->SpawnActor<AMagicCircle>(MagicCircleClass);
+		
+		/*
+		   Checks if a custom decal material was provided as a parameter to this function ShowMagicCircle().
+
+		   The DecalMaterial parameter is optional (defaults to nullptr as specified in the function signature).
+		   If a valid material is provided, it will override the default material set on the MagicCircleDecal
+		   component in the AMagicCircle blueprint. This allows different abilities to use different visual
+		   styles for their targeting circles (e.g., fire abilities might use a red circle, ice abilities
+		   might use a blue circle) without requiring separate magic circle actor classes for each variation.
+
+		   If DecalMaterial is nullptr, the magic circle will use whatever default material was configured
+		   in its blueprint, maintaining consistent visual feedback when no custom material is specified.
+		 */
+		if (DecalMaterial)
+		{
+			/*
+			   Applies the custom decal material to the magic circle's decal component.
+
+			   Breaking down this line:
+			   1. MagicCircle->MagicCircleDecal: Accesses the UDecalComponent member variable of the spawned
+			      AMagicCircle actor. This component is responsible for projecting the magic circle decal onto
+			      surfaces in the world, providing visual feedback for ability targeting.
+
+			   2. ->SetMaterial(): Method from UDecalComponent that changes the material displayed by the decal.
+			      This updates the visual appearance of the targeting circle.
+
+			   3. 0 (first parameter - ElementIndex): The material slot index to modify. Decal components can have
+			      multiple material slots, but we only use slot 0 since the magic circle only needs a single
+			      material to define its appearance.
+
+			   4. DecalMaterial (second parameter - Material): The UMaterialInterface pointer passed to this function
+			      ShowMagicCircle() that defines the visual appearance of the targeting circle. This material
+			      determines the color, pattern, opacity, and other visual properties of the decal projected
+			      onto the ground or surfaces beneath the cursor.
+			*/
+			MagicCircle->MagicCircleDecal->SetMaterial(0, DecalMaterial);
+		}
 	}
 }
 
