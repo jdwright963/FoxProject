@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "FoxPlayerController.generated.h"
 
+class AMagicCircle;
 class UNiagaraSystem;
 class UDamageTextComponent;
 class USplineComponent;
@@ -34,6 +35,14 @@ public:
 	// DamageTextComponent and displays it on the screen. TargetCharacter is the actor we want to show this component above
 	UFUNCTION(Client, Reliable)
 	void ShowDamageNumber(float DamageAmount, ACharacter* TargetCharacter, bool bBlockedHit, bool bCriticalHit);
+	
+	// Blueprint callable function that makes the magic circle decal visible, used for targeting or ability placement
+	UFUNCTION(BlueprintCallable)
+	void ShowMagicCircle();
+
+	// Blueprint callable function that hides the magic circle decal, called when targeting or ability placement is complete
+	UFUNCTION(BlueprintCallable)
+	void HideMagicCircle();
 	
 protected:
 	virtual void BeginPlay() override;
@@ -125,4 +134,17 @@ private:
 	// Variable to hold a child of the DamageTextComponent class. This is set in the player controller BP
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UDamageTextComponent> DamageTextComponentClass;
+	
+	// A variable that stores a subclass of AMagicCircle. We set the value in the Blueprint 
+	// to be a specific Blueprint class derived from AMagicCircle. This is the actor 
+	// used to visualize ability placement and targeting in the world.
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<AMagicCircle> MagicCircleClass;
+
+	// Spawned instance of the magic circle actor that follows the cursor for targeting and ability placement
+	UPROPERTY()
+	TObjectPtr<AMagicCircle> MagicCircle;
+
+	// Updates the magic circle's world position to follow the cursor's hit location on surfaces
+	void UpdateMagicCircleLocation();
 };

@@ -10,6 +10,7 @@
 #include "NavigationSystem.h"
 #include "NiagaraFunctionLibrary.h"
 #include "AbilitySystem/FoxAbilitySystemComponent.h"
+#include "Actor/MagicCircle.h"
 #include "Components/SplineComponent.h"
 #include "GameFramework/Character.h"
 #include "Input/FoxInputComponent.h"
@@ -33,9 +34,45 @@ void AFoxPlayerController::PlayerTick(float DeltaTime)
 	
 	// This relates to auto running and needs to be removed
 	AutoRun();
+	
+	// Updates the magic circle actor's world position to match the cursor's impact point
+	UpdateMagicCircleLocation();
 }
 
-// '_Implementation' is auto generated when generating definitions of RPCs
+void AFoxPlayerController::ShowMagicCircle()
+{
+	// Checks if the MagicCircle actor has not been spawned yet or has been destroyed since the last call to ShowMagicCircle()
+	if (!IsValid(MagicCircle))
+	{
+		// Spawns a new instance of the AMagicCircle actor class in the world using the MagicCircleClass template set in the blueprint
+		MagicCircle = GetWorld()->SpawnActor<AMagicCircle>(MagicCircleClass);
+	}
+}
+
+void AFoxPlayerController::HideMagicCircle()
+{
+	/*
+	   Checks if the MagicCircle pointer is valid before attempting to destroy it.
+
+	   IsValid() verifies that MagicCircle is not null and not pending kill (Destroy() has not already been called on it).
+	   This prevents crashes from attempting to destroy a null pointer or an actor that is already being destroyed,
+	   which could occur if HideMagicCircle() is called multiple times in succession or if the magic circle was
+	   never spawned by ShowMagicCircle() in the first place.
+	 */
+	if (IsValid(MagicCircle))
+	{
+		/*
+		   Destroys the magic circle actor and removes it from the world.
+
+		   Destroy() marks the actor for deletion and removes it from the world at the end of the current frame.
+		   This cleans up the visual representation of the magic circle when it's no longer needed (e.g., when
+		   the player cancels a targeted ability or completes casting). The actor's memory will be garbage
+		   collected by Unreal's object system after it's fully removed from the world.
+		 */
+		MagicCircle->Destroy();
+	}
+}
+
 void AFoxPlayerController::ShowDamageNumber_Implementation(float DamageAmount, ACharacter* TargetCharacter, bool bBlockedHit, bool bCriticalHit)
 {
 	/*
@@ -154,10 +191,32 @@ void AFoxPlayerController::AutoRun()
 	}	
 }
 
-// We do not want this cursor trace that highlights actors in the final game this all needs to be removed
+void AFoxPlayerController::UpdateMagicCircleLocation()
+{
+	/*
+	   Checks if the MagicCircle pointer is valid before attempting to update its location.
+
+	   IsValid() verifies that MagicCircle is not null and not pending kill (Destroy() has not been called on it).
+	   This prevents crashes from accessing a destroyed or non-existent actor, which could occur if HideMagicCircle()
+	   was called to destroy the magic circle, or if ShowMagicCircle() was never called to spawn it in the first place.
+	 */
+	if (IsValid(MagicCircle))
+	{
+		/*
+		   Updates the magic circle's world position to follow the cursor's impact point on the ground.
+
+		   CursorHit.ImpactPoint contains the FVector world location where the cursor trace hit the geometry,
+		   calculated in the CursorTrace() function. By continuously updating (since we call this function in PlayerTick()) 
+		   the magic circle's location to this point, the decal follows the player's cursor in real-time, providing 
+		   visual feedback for targeted ability placement or ground-targeted spell casting.
+		 */
+		MagicCircle->SetActorLocation(CursorHit.ImpactPoint);
+	}
+}
+
+// We do not want the parts of this cursor trace that highlights actors in the final game this all needs to be removed
 void AFoxPlayerController::CursorTrace()
 {
-	
 	if (GetASC() && GetASC()->HasMatchingGameplayTag(FFoxGameplayTags::Get().Player_Block_CursorTrace))
 	{
 		if (LastActor) LastActor->UnHighlightActor();

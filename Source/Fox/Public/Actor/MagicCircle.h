@@ -21,6 +21,9 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	
-	UPROPERTY(VisibleAnywhere)
+	// Decal component that provides the visual representation of the magic circle projected onto surfaces
+	// This component has a decal material property that we set in the blueprint this allows us to select the material
+	// the decal will project onto surfaces
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UDecalComponent> MagicCircleDecal;
 };
