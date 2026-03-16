@@ -340,7 +340,12 @@ void FFoxGameplayTags::InitializeNativeGameplayTags()
 		FString("Summon Ability Tag")
 		);
 	
-	// Gameplay tag for the FireBolt ability
+	
+	/*
+	 * Offensive Spells
+	 */
+	
+	// Constructs the Gameplay tag to identify the FireBolt ability
 	GameplayTags.Abilities_Fire_FireBolt = UGameplayTagsManager::Get().AddNativeGameplayTag(
 	FName("Abilities.Fire.FireBolt"),
 	FString("FireBolt Ability Tag")
@@ -350,6 +355,12 @@ void FFoxGameplayTags::InitializeNativeGameplayTags()
 	GameplayTags.Abilities_Lightning_Electrocute = UGameplayTagsManager::Get().AddNativeGameplayTag(
 		FName("Abilities.Lightning.Electrocute"),
 		FString("Electrocute Ability Tag")
+		);
+	
+	// Constructs the Gameplay tag to identify the ArcaneShards ability
+	GameplayTags.Abilities_Arcane_ArcaneShards = UGameplayTagsManager::Get().AddNativeGameplayTag(
+		FName("Abilities.Arcane.ArcaneShards"),
+		FString("Arcane Shards Ability Tag")
 		);
 	
 	/*

@@ -111,6 +111,9 @@ public:
 	// Gameplay tag to identify the Electrocute ability
 	FGameplayTag Abilities_Lightning_Electrocute;
 	
+	// Gameplay tag to identify the ArcaneShards ability
+	FGameplayTag Abilities_Arcane_ArcaneShards;
+	
 	// Gameplay tags to identify passive spell abilities
 	FGameplayTag Abilities_Passive_HaloOfProtection;
 	FGameplayTag Abilities_Passive_LifeSiphon;
