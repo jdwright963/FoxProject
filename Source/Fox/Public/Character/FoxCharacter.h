@@ -120,11 +120,10 @@ public:
 	// PlayerInterface.h and overriden here
 	virtual int32 GetSpellPoints_Implementation() const override;
 	
-	
 	/**
 	 * ShowMagicCircle_Implementation - Implementation of the IPlayerInterface::ShowMagicCircle function
 	 * 
-	 * This function delegates the request to show the magic circle targeting decal to the PlayerController.
+	 * This function sends the request to show the magic circle targeting decal to the PlayerController.
 	 * It serves as a bridge between the Ability System (which may trigger targeting visualization) and
 	 * the PlayerController (which owns and manages the magic circle actor).
 	 * 

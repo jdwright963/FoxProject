@@ -725,6 +725,16 @@ void AFoxCharacter::ShowMagicCircle_Implementation(UMaterialInterface* DecalMate
 		 * @param DecalMaterial The material to apply to the magic circle decal, or nullptr to use default
 		 */
 		FoxPlayerController->ShowMagicCircle(DecalMaterial);
+		
+		/**
+		 * Hide the mouse cursor while the magic circle is active
+		 * 
+		 * When the magic circle is shown, it provides visual feedback for ability targeting and follows
+		 * the cursor's world position. The cursor itself becomes redundant and can clutter the visual
+		 * presentation, so we hide it to provide a cleaner targeting experience.
+		 * bShowMouseCursor is a built-in APlayerController property that controls cursor visibility:
+		 */
+		FoxPlayerController->bShowMouseCursor = false;
 	}
 }
 
@@ -763,6 +773,15 @@ void AFoxCharacter::HideMagicCircle_Implementation()
 		 * - The player cancels ability targeting
 		 */
 		FoxPlayerController->HideMagicCircle();
+		
+		/**
+		 * Show the mouse cursor after the magic circle is hidden
+		 * 
+		 * When ShowMagicCircle() was called, it hid the cursor (bShowMouseCursor = false) because the magic
+		 * circle itself provides visual feedback for targeting and follows the cursor's world position.
+		 * Now that the magic circle is hidden, we show the mouse cursor.
+		 */
+		FoxPlayerController->bShowMouseCursor = true;
 	}
 }
 
