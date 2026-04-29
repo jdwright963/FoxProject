@@ -27,6 +27,10 @@ class FOX_API UFoxAbilitySystemLibrary : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 public:
 	
+	/*
+	 * Widget Controller
+	 */
+	
 	// Function to create and populate widget controller parameters required for initializing UI widget controllers
 	// This is a utility function that retrieves necessary components from the game world and packages them into
 	// a FWidgetControllerParams struct, which is used by various widget controllers (Overlay, Attribute Menu, Spell Menu)
@@ -60,6 +64,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="FoxAbilitySystemLibrary|WidgetController", meta = (DefaultToSelf = "WorldContextObject"))
 	static USpellMenuWidgetController* GetSpellMenuWidgetController(const UObject* WorldContextObject);
 	
+	/*
+	 * Ability System Class Defaults
+	 */
+	
 	// Function that will initialize default attributes for enemies based on their class and level
 	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|CharacterClassDefaults")
 	static void InitializeDefaultAttributes(const UObject* WorldContextObject, ECharacterClass CharacterClass, float Level, UAbilitySystemComponent* ASC);
@@ -81,6 +89,10 @@ public:
 	// Returns: Pointer to the UAbilityInfo data asset configured in AFoxGameModeBase, or nullptr if not found
 	UFUNCTION(BlueprintCallable, Category="FoxAbilitySystemLibrary|CharacterClassDefaults")
 	static UAbilityInfo* GetAbilityInfo(const UObject* WorldContextObject);
+	
+	/*
+	 * Effect Context Getters
+	 */
 	
 	// Function to get the value of the IsBlockedHit boolean from our custom gameplay effect context 
 	// FFoxGameplayEffectContext from FoxAbilityTypes.h
@@ -159,7 +171,51 @@ public:
 	// Function to get the value of the IsBlockedHit boolean from our custom gameplay effect context. See comment above
 	UFUNCTION(BlueprintPure, Category = "FoxAbilitySystemLibrary|GameplayEffects")
 	static bool IsCriticalHit(const FGameplayEffectContextHandle& EffectContextHandle);
+	
+	// Function to get the value of the IsRadialDamage boolean from our custom gameplay effect context
+	// FFoxGameplayEffectContext from FoxAbilityTypes.h
+	// This indicates whether the damage effect uses radial (area of effect) damage instead of single-target damage
+	// Radial damage affects multiple targets within a specified radius, with damage potentially falling off based on distance
+	// EffectContextHandle: Handle to the gameplay effect context containing the radial damage flag
+	// Returns: true if this effect applies radial damage, false if it's single-target damage
+	// This function is exposed to Blueprint as BlueprintPure because it only reads data and does not modify it
+	UFUNCTION(BlueprintPure, Category = "FoxAbilitySystemLibrary|GameplayEffects")
+	static bool IsRadialDamage(const FGameplayEffectContextHandle& EffectContextHandle);
 
+	// Function to get the inner radius for radial damage calculations from our custom gameplay effect context
+	// FFoxGameplayEffectContext from FoxAbilityTypes.h
+	// The inner radius defines the area within which targets receive full damage from the radial effect
+	// Targets between the inner and outer radius typically receive reduced damage based on distance falloff
+	// EffectContextHandle: Handle to the gameplay effect context containing the radial damage inner radius value
+	// Returns: The inner radius in world units (cm) where full damage is applied
+	// This function is exposed to Blueprint as BlueprintPure because it only reads data and does not modify it
+	UFUNCTION(BlueprintPure, Category = "FoxAbilitySystemLibrary|GameplayEffects")
+	static float GetRadialDamageInnerRadius(const FGameplayEffectContextHandle& EffectContextHandle);
+
+	// Function to get the outer radius for radial damage calculations from our custom gameplay effect context
+	// FFoxGameplayEffectContext from FoxAbilityTypes.h
+	// The outer radius defines the maximum range of the radial damage effect
+	// Targets beyond this radius receive no damage, while targets between inner and outer radius receive reduced damage
+	// EffectContextHandle: Handle to the gameplay effect context containing the radial damage outer radius value
+	// Returns: The outer radius in world units (cm) representing the maximum damage range
+	// This function is exposed to Blueprint as BlueprintPure because it only reads data and does not modify it
+	UFUNCTION(BlueprintPure, Category = "FoxAbilitySystemLibrary|GameplayEffects")
+	static float GetRadialDamageOuterRadius(const FGameplayEffectContextHandle& EffectContextHandle);
+
+	// Function to get the origin point for radial damage calculations from our custom gameplay effect context
+	// FFoxGameplayEffectContext from FoxAbilityTypes.h
+	// This vector represents the world space location from which radial damage emanates
+	// Distance calculations for damage falloff are performed from this origin point to each affected target
+	// EffectContextHandle: Handle to the gameplay effect context containing the radial damage origin location
+	// Returns: FVector representing the world space position of the radial damage epicenter
+	// This function is exposed to Blueprint as BlueprintPure because it only reads data and does not modify it
+	UFUNCTION(BlueprintPure, Category = "FoxAbilitySystemLibrary|GameplayEffects")
+	static FVector GetRadialDamageOrigin(const FGameplayEffectContextHandle& EffectContextHandle);
+	
+	/*
+	 * Effect Context Setters
+	 */
+	
 	// Function to set the value of the IsBlockedHit boolean from our custom gameplay effect context 
 	// This function is exposed to Blueprint as BlueprintCallable because it actually modifies data
 	// In UE if a parameter is passed by non const reference it is an output pin/parameter in the blueprint
@@ -245,6 +301,54 @@ public:
 	// `UPARAM(ref)` tells the engine that this parameter is supposed to be an input pin/parameter in Blueprint
 	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|GameplayEffects")
 	static void SetKnockbackForce(UPARAM(ref) FGameplayEffectContextHandle& EffectContextHandle, const FVector& InForce);
+	
+	// Function to set the value of the IsRadialDamage boolean in our custom gameplay effect context
+	// FFoxGameplayEffectContext from FoxAbilityTypes.h
+	// This marks whether the damage effect uses radial (area of effect) damage instead of single-target damage
+	// Radial damage affects multiple targets within a specified radius, with damage potentially falling off based on distance
+	// EffectContextHandle: Handle to the gameplay effect context where the radial damage flag will be stored (passed by reference)
+	// bInIsRadialDamage: Boolean value indicating whether this effect applies radial damage
+	// This function is exposed to Blueprint as BlueprintCallable instead of BlueprintPure because it modifies data
+	// `UPARAM(ref)` tells the engine that this parameter is supposed to be an input pin/parameter in Blueprint
+	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|GameplayEffects")
+	static void SetIsRadialDamage(UPARAM(ref) FGameplayEffectContextHandle& EffectContextHandle, bool bInIsRadialDamage);
+
+	// Function to set the inner radius for radial damage calculations in our custom gameplay effect context
+	// FFoxGameplayEffectContext from FoxAbilityTypes.h
+	// The inner radius defines the area within which targets receive full damage from the radial effect
+	// Targets between the inner and outer radius typically receive reduced damage based on distance falloff
+	// EffectContextHandle: Handle to the gameplay effect context where the radial damage inner radius value will be stored (passed by reference)
+	// InInnerRadius: The inner radius in world units (cm) where full damage is applied
+	// This function is exposed to Blueprint as BlueprintCallable instead of BlueprintPure because it modifies data
+	// `UPARAM(ref)` tells the engine that this parameter is supposed to be an input pin/parameter in Blueprint
+	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|GameplayEffects")
+	static void SetRadialDamageInnerRadius(UPARAM(ref) FGameplayEffectContextHandle& EffectContextHandle, float InInnerRadius);
+
+	// Function to set the outer radius for radial damage calculations in our custom gameplay effect context
+	// FFoxGameplayEffectContext from FoxAbilityTypes.h
+	// The outer radius defines the maximum range of the radial damage effect
+	// Targets beyond this radius receive no damage, while targets between inner and outer radius receive reduced damage
+	// EffectContextHandle: Handle to the gameplay effect context where the radial damage outer radius value will be stored (passed by reference)
+	// InOuterRadius: The outer radius in world units (cm) representing the maximum damage range
+	// This function is exposed to Blueprint as BlueprintCallable instead of BlueprintPure because it modifies data
+	// `UPARAM(ref)` tells the engine that this parameter is supposed to be an input pin/parameter in Blueprint
+	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|GameplayEffects")
+	static void SetRadialDamageOuterRadius(UPARAM(ref) FGameplayEffectContextHandle& EffectContextHandle, float InOuterRadius);
+
+	// Function to set the origin point for radial damage calculations in our custom gameplay effect context
+	// FFoxGameplayEffectContext from FoxAbilityTypes.h
+	// This vector represents the world space location from which radial damage emanates
+	// Distance calculations for damage falloff are performed from this origin point to each affected target
+	// EffectContextHandle: Handle to the gameplay effect context where the radial damage origin location will be stored (passed by reference)
+	// InOrigin: FVector representing the world space position of the radial damage epicenter
+	// This function is exposed to Blueprint as BlueprintCallable instead of BlueprintPure because it modifies data
+	// `UPARAM(ref)` tells the engine that this parameter is supposed to be an input pin/parameter in Blueprint
+	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|GameplayEffects")
+	static void SetRadialDamageOrigin(UPARAM(ref) FGameplayEffectContextHandle& EffectContextHandle, const FVector& InOrigin);
+	
+	/*
+	 * Gameplay Mechanics
+	 */
 	
 	// Function to get all live players within a specified radius from a given origin point
 	// This is a BlueprintCallable function that performs a sphere overlap query to find actors

@@ -546,6 +546,126 @@ bool UFoxAbilitySystemLibrary::IsCriticalHit(const FGameplayEffectContextHandle&
 	return false;
 }
 
+bool UFoxAbilitySystemLibrary::IsRadialDamage(const FGameplayEffectContextHandle& EffectContextHandle)
+{
+	/*
+	 * Get the raw pointer to the base FGameplayEffectContext from the handle using Get(), then use static_cast to 
+	 * convert it to our custom FFoxGameplayEffectContext pointer type. 
+	 *
+	 * We use static_cast instead of Unreal's Cast macro because static_cast is a C++ compile-time cast that performs 
+	 * no runtime type checking, making it faster but requiring the programmer to guarantee the type is correct. 
+	 * Unreal's Cast macro performs runtime type safety checks using RTTI (Run-Time Type Information), which is 
+	 * safer but has performance overhead. 
+	 *
+	 * In this case, we know with certainty that our project is configured to use FFoxGameplayEffectContext as 
+	 * the effect context type (set in the project settings), so the compile-time cast is safe and more performant. 
+	 * The result is stored in a const pointer variable called FoxEffectContext. This if statement checks if the 
+	 * cast was successful (pointer is not null).
+	 */
+	if (const FFoxGameplayEffectContext* FoxEffectContext = static_cast<const FFoxGameplayEffectContext*>(EffectContextHandle.Get()))
+	{
+		// Returns the value of the IsRadialDamage boolean indicating if the effect has the radial damage mode active instead
+		// of the default single target mode. Radial damage uses two radii to create
+		// a damage falloff system: the inner radius (this value) defines where maximum damage is applied, and the outer radius
+		// defines where damage drops to zero. Targets between the inner and outer radius receive linearly interpolated damage
+		// based on their distance from the origin.
+		return FoxEffectContext->IsRadialDamage();
+	}
+	// If the cast failed (returned nullptr), return false as the default value indicating radial damage mode is not active.
+	return false;
+}
+
+float UFoxAbilitySystemLibrary::GetRadialDamageInnerRadius(const FGameplayEffectContextHandle& EffectContextHandle)
+{
+	/*
+	 * Get the raw pointer to the base FGameplayEffectContext from the handle using Get(), then use static_cast to 
+	 * convert it to our custom FFoxGameplayEffectContext pointer type. 
+	 *
+	 * We use static_cast instead of Unreal's Cast macro because static_cast is a C++ compile-time cast that performs 
+	 * no runtime type checking, making it faster but requiring the programmer to guarantee the type is correct. 
+	 * Unreal's Cast macro performs runtime type safety checks using RTTI (Run-Time Type Information), which is 
+	 * safer but has performance overhead. 
+	 *
+	 * In this case, we know with certainty that our project is configured to use FFoxGameplayEffectContext as 
+	 * the effect context type (set in the project settings), so the compile-time cast is safe and more performant. 
+	 * The result is stored in a const pointer variable called FoxEffectContext. This if statement checks if the 
+	 * cast was successful (pointer is not null).
+	 */
+	if (const FFoxGameplayEffectContext* FoxEffectContext = static_cast<const FFoxGameplayEffectContext*>(EffectContextHandle.Get()))
+	{
+		// If the cast was successful, call the GetRadialDamageInnerRadius() member function on our custom context to get
+		// the radial damage inner radius float value and return it. This value represents the radius (in Unreal units) of
+		// the inner zone of a radial damage effect where targets receive full damage. Radial damage uses two radii to create
+		// a damage falloff system: the inner radius (this value) defines where maximum damage is applied, and the outer radius
+		// defines where damage drops to zero. Targets between the inner and outer radius receive linearly interpolated damage
+		// based on their distance from the origin.
+		return FoxEffectContext->GetRadialDamageInnerRadius();
+	}
+	// If the cast failed (returned nullptr), return 0.f as the default value indicating no radial damage inner radius exists.
+	return 0.f;
+}
+
+float UFoxAbilitySystemLibrary::GetRadialDamageOuterRadius(const FGameplayEffectContextHandle& EffectContextHandle)
+{
+	/*
+	 * Get the raw pointer to the base FGameplayEffectContext from the handle using Get(), then use static_cast to 
+	 * convert it to our custom FFoxGameplayEffectContext pointer type. 
+	 *
+	 * We use static_cast instead of Unreal's Cast macro because static_cast is a C++ compile-time cast that performs 
+	 * no runtime type checking, making it faster but requiring the programmer to guarantee the type is correct. 
+	 * Unreal's Cast macro performs runtime type safety checks using RTTI (Run-Time Type Information), which is 
+	 * safer but has performance overhead. 
+	 *
+	 * In this case, we know with certainty that our project is configured to use FFoxGameplayEffectContext as 
+	 * the effect context type (set in the project settings), so the compile-time cast is safe and more performant. 
+	 * The result is stored in a const pointer variable called FoxEffectContext. This if statement checks if the 
+	 * cast was successful (pointer is not null).
+	 */
+	if (const FFoxGameplayEffectContext* FoxEffectContext = static_cast<const FFoxGameplayEffectContext*>(EffectContextHandle.Get()))
+	{
+		// If the cast was successful, call the GetRadialDamageOuterRadius() member function on our custom context to get
+		// the radial damage outer radius float value and return it. This value represents the radius (in Unreal units) of
+		// the outer boundary of a radial damage effect where damage drops to zero. Radial damage uses two radii to create
+		// a damage falloff system: the inner radius defines where maximum damage is applied, and the outer radius (this value)
+		// defines where damage drops to zero. Targets between the inner and outer radius receive linearly interpolated damage
+		// based on their distance from the origin.
+		return FoxEffectContext->GetRadialDamageOuterRadius();
+	}
+	// If the cast failed (returned nullptr), return 0.f as the default value indicating no radial damage outer radius exists.
+	return 0.f;
+}
+
+FVector UFoxAbilitySystemLibrary::GetRadialDamageOrigin(const FGameplayEffectContextHandle& EffectContextHandle)
+{
+	/*
+	 * Get the raw pointer to the base FGameplayEffectContext from the handle using Get(), then use static_cast to 
+	 * convert it to our custom FFoxGameplayEffectContext pointer type. 
+	 *
+	 * We use static_cast instead of Unreal's Cast macro because static_cast is a C++ compile-time cast that performs 
+	 * no runtime type checking, making it faster but requiring the programmer to guarantee the type is correct. 
+	 * Unreal's Cast macro performs runtime type safety checks using RTTI (Run-Time Type Information), which is 
+	 * safer but has performance overhead. 
+	 *
+	 * In this case, we know with certainty that our project is configured to use FFoxGameplayEffectContext as 
+	 * the effect context type (set in the project settings), so the compile-time cast is safe and more performant. 
+	 * The result is stored in a const pointer variable called FoxEffectContext. This if statement checks if the 
+	 * cast was successful (pointer is not null).
+	 */
+	if (const FFoxGameplayEffectContext* FoxEffectContext = static_cast<const FFoxGameplayEffectContext*>(EffectContextHandle.Get()))
+	{
+		// If the cast was successful, call the GetRadialDamageOrigin() member function on our custom context to retrieve
+		// the radial damage origin point and return it. This FVector represents the world space location (center point)
+		// from which radial damage emanates and distance calculations are performed. For area-of-effect abilities like
+		// explosions or shockwaves, this origin serves as the epicenter for determining damage falloff based on target
+		// distance using the inner and outer radius values.
+		return FoxEffectContext->GetRadialDamageOrigin();
+	}
+	// If the cast failed (returned nullptr), return FVector::ZeroVector as the default value, indicating no radial
+	// damage origin exists. ZeroVector is Unreal's static constant representing (0,0,0), which would place the origin
+	// at the world origin if used (though the absence of a valid context typically means radial damage isn't being used).
+	return FVector::ZeroVector;
+}
+
 void UFoxAbilitySystemLibrary::SetIsBlockedHit(FGameplayEffectContextHandle& EffectContextHandle, bool bInIsBlockedHit)
 {
 	/*
@@ -802,6 +922,124 @@ void UFoxAbilitySystemLibrary::SetKnockbackForce(FGameplayEffectContextHandle& E
 		// using the setter function. This vector defines both the direction and magnitude of the physical force that 
 		// displaces a living character when they take damage (unlike DeathImpulse which only applies on death).
 		FoxEffectContext->SetKnockbackForce(InForce);
+	}
+}
+
+void UFoxAbilitySystemLibrary::SetIsRadialDamage(FGameplayEffectContextHandle& EffectContextHandle,
+	bool bInIsRadialDamage)
+{
+	/*
+	 * Get the raw pointer to the base FGameplayEffectContext from the handle using Get(), then use static_cast to 
+	 * convert it to our custom FFoxGameplayEffectContext pointer type. 
+	 *
+	 * We use static_cast instead of Unreal's Cast macro because static_cast is a C++ compile-time cast that performs 
+	 * no runtime type checking, making it faster but requiring the programmer to guarantee the type is correct. 
+	 * Unreal's Cast macro performs runtime type safety checks using RTTI (Run-Time Type Information), which is 
+	 * safer but has performance overhead. 
+	 *
+	 * In this case, we know with certainty that our project is configured to use FFoxGameplayEffectContext as 
+	 * the effect context type (set in the project settings), so the compile-time cast is safe and more performant. 
+	 * The result is stored in a non-const pointer variable called FoxEffectContext. This if statement checks if the 
+	 * cast was successful (pointer is not null).
+	 */
+	if (FFoxGameplayEffectContext* FoxEffectContext = static_cast<FFoxGameplayEffectContext*>(EffectContextHandle.Get()))
+	{
+		// Sets the value of the IsRadialDamage boolean in the custom effect context using the setter function. This 
+		// requires that the
+		// EffectContextHandle input parameter be non const and not be cast to const. The bInIsRadialDamage parameter
+		// (passed into this function) is forwarded to the setter to specify whether the damage effect should use
+		// radial damage mode (true) with inner/outer radius falloff calculations, or single target mode (false).
+		FoxEffectContext->SetIsRadialDamage(bInIsRadialDamage);
+	}
+}
+
+void UFoxAbilitySystemLibrary::SetRadialDamageInnerRadius(FGameplayEffectContextHandle& EffectContextHandle,
+	float InInnerRadius)
+{
+	/*
+	 * Get the raw pointer to the base FGameplayEffectContext from the handle using Get(), then use static_cast to 
+	 * convert it to our custom FFoxGameplayEffectContext pointer type. 
+	 *
+	 * We use static_cast instead of Unreal's Cast macro because static_cast is a C++ compile-time cast that performs 
+	 * no runtime type checking, making it faster but requiring the programmer to guarantee the type is correct. 
+	 * Unreal's Cast macro performs runtime type safety checks using RTTI (Run-Time Type Information), which is 
+	 * safer but has performance overhead. 
+	 *
+	 * In this case, we know with certainty that our project is configured to use FFoxGameplayEffectContext as 
+	 * the effect context type (set in the project settings), so the compile-time cast is safe and more performant. 
+	 * The result is stored in a non-const pointer variable called FoxEffectContext. This if statement checks if the 
+	 * cast was successful (pointer is not null).
+	 */
+	if (FFoxGameplayEffectContext* FoxEffectContext = static_cast<FFoxGameplayEffectContext*>(EffectContextHandle.Get()))
+	{
+		// Sets the radial damage inner radius value In the custom effect context using the setter function. This requires
+		// that the EffectContextHandle
+		// input parameter be non const and not be cast to const. The InInnerRadius parameter (passed into this function)
+		// is forwarded to the setter to specify the radius (in Unreal units) of the inner zone of a radial damage effect
+		// where targets receive full damage. Radial damage uses two radii to create a damage falloff system: the inner
+		// radius (this value) defines where maximum damage is applied, and the outer radius defines where damage drops
+		// to zero. Targets between the inner and outer radius receive linearly interpolated damage based on their
+		// distance from the origin.
+		FoxEffectContext->SetRadialDamageInnerRadius(InInnerRadius);
+	}
+}
+
+void UFoxAbilitySystemLibrary::SetRadialDamageOuterRadius(FGameplayEffectContextHandle& EffectContextHandle,
+	float InOuterRadius)
+{
+	/*
+	 * Get the raw pointer to the base FGameplayEffectContext from the handle using Get(), then use static_cast to 
+	 * convert it to our custom FFoxGameplayEffectContext pointer type. 
+	 *
+	 * We use static_cast instead of Unreal's Cast macro because static_cast is a C++ compile-time cast that performs 
+	 * no runtime type checking, making it faster but requiring the programmer to guarantee the type is correct. 
+	 * Unreal's Cast macro performs runtime type safety checks using RTTI (Run-Time Type Information), which is 
+	 * safer but has performance overhead. 
+	 *
+	 * In this case, we know with certainty that our project is configured to use FFoxGameplayEffectContext as 
+	 * the effect context type (set in the project settings), so the compile-time cast is safe and more performant. 
+	 * The result is stored in a non-const pointer variable called FoxEffectContext. This if statement checks if the 
+	 * cast was successful (pointer is not null).
+	 */
+	if (FFoxGameplayEffectContext* FoxEffectContext = static_cast<FFoxGameplayEffectContext*>(EffectContextHandle.Get()))
+	{
+		// Sets the radial damage outer radius value in the custom effect context using the setter function. This requires
+		// that the EffectContextHandle input parameter be non const and not be cast to const. The InOuterRadius parameter
+		// (passed into this function) is forwarded to the setter to specify the radius (in Unreal units) of the outer
+		// boundary of a radial damage effect where damage drops to zero. Radial damage uses two radii to create a damage
+		// falloff system: the inner radius defines where maximum damage is applied, and the outer radius (this value)
+		// defines where damage drops to zero. Targets between the inner and outer radius receive linearly interpolated
+		// damage based on their distance from the origin.
+		FoxEffectContext->SetRadialDamageOuterRadius(InOuterRadius);
+	}
+}
+
+void UFoxAbilitySystemLibrary::SetRadialDamageOrigin(FGameplayEffectContextHandle& EffectContextHandle,
+	const FVector& InOrigin)
+{
+	/*
+	 * Get the raw pointer to the base FGameplayEffectContext from the handle using Get(), then use static_cast to 
+	 * convert it to our custom FFoxGameplayEffectContext pointer type. 
+	 *
+	 * We use static_cast instead of Unreal's Cast macro because static_cast is a C++ compile-time cast that performs 
+	 * no runtime type checking, making it faster but requiring the programmer to guarantee the type is correct. 
+	 * Unreal's Cast macro performs runtime type safety checks using RTTI (Run-Time Type Information), which is 
+	 * safer but has performance overhead. 
+	 *
+	 * In this case, we know with certainty that our project is configured to use FFoxGameplayEffectContext as 
+	 * the effect context type (set in the project settings), so the compile-time cast is safe and more performant. 
+	 * The result is stored in a non-const pointer variable called FoxEffectContext. This if statement checks if the 
+	 * cast was successful (pointer is not null).
+	 */
+	if (FFoxGameplayEffectContext* FoxEffectContext = static_cast<FFoxGameplayEffectContext*>(EffectContextHandle.Get()))
+	{
+		// Set the radial damage origin point in the Fox effect context using the setter function. This vector
+		// defines the world space location (center point) from which radial damage emanates and distance calculations
+		// are performed. For area-of-effect abilities like explosions or shockwaves, this origin serves as the
+		// epicenter for determining damage falloff based on target distance using the inner and outer radius values.
+		// The InOrigin parameter (passed into this function) contains the 3D world coordinates that establish where
+		// the radial damage effect originates.
+		FoxEffectContext->SetRadialDamageOrigin(InOrigin);
 	}
 }
 
@@ -1084,9 +1322,80 @@ FGameplayEffectContextHandle UFoxAbilitySystemLibrary::ApplyDamageEffect(const F
 	 */
 	EffectContexthandle.AddSourceObject(SourceAvatarActor);
 	
+	/*
+	 * Store the death impulse vector from DamageEffectParams into the effect context using the SetDeathImpulse
+	 * helper function. This impulse vector (containing both direction and magnitude) will be applied to the target's
+	 * ragdoll physics body when they die, creating a realistic death animation that launches or pushes the body
+	 * based on the killing blow's force and direction. For example, a powerful melee attack might have a large
+	 * impulse that sends enemies flying backward, while a projectile might apply a directional impulse along the
+	 * projectile's travel path. The DeathImpulse parameter is sourced from the damage effect configuration and
+	 * stored in the context so it can be retrieved later by death handling systems when processing the target's
+	 * death state.
+	 */
 	SetDeathImpulse(EffectContexthandle, DamageEffectParams.DeathImpulse);
-	
+
+	/*
+	 * Store the knockback force vector from DamageEffectParams into the effect context using the SetKnockbackForce
+	 * helper function. This force vector defines both the direction and magnitude of the physical displacement
+	 * that should be applied to a living character when they take damage (unlike DeathImpulse which only applies
+	 * on death). Knockback creates impactful combat feedback by pushing targets away from the damage source,
+	 * interrupting their actions, and potentially repositioning them strategically. For example, a shield bash
+	 * ability might apply strong knockback to create distance, while a light attack might have minimal knockback.
+	 * The KnockbackForce parameter is sourced from the damage effect configuration and stored in the context so
+	 * damage execution calculations or gameplay cues can retrieve it to apply the appropriate physics force.
+	 */
 	SetKnockbackForce(EffectContexthandle, DamageEffectParams.KnockbackForce);
+
+	/*
+	 * Store the radial damage mode boolean from DamageEffectParams into the effect context using the
+	 * SetIsRadialDamage helper function. This boolean flag indicates whether the damage effect should use radial
+	 * damage calculations (true) with inner/outer radius falloff, or single target mode (false). When true, the
+	 * damage execution calculation will retrieve the radial damage parameters (inner radius, outer radius, and
+	 * origin) from the context to calculate distance-based damage falloff for area-of-effect abilities like
+	 * explosions, shockwaves, or ground slams. When false, standard single-target damage calculations are used.
+	 * The bIsRadialDamage parameter is sourced from the damage effect configuration and stored in the context
+	 * so the damage calculation system can determine which calculation mode to use.
+	 */
+	SetIsRadialDamage(EffectContexthandle, DamageEffectParams.bIsRadialDamage);
+
+	/*
+	 * Store the radial damage inner radius from DamageEffectParams into the effect context using the
+	 * SetRadialDamageInnerRadius helper function. This float value (in Unreal units) defines the radius of the
+	 * inner zone where targets receive full damage in a radial damage effect. Radial damage uses a two-radius
+	 * falloff system: targets within the inner radius (this value) take maximum damage, targets between the inner
+	 * and outer radius take linearly interpolated damage based on distance, and targets beyond the outer radius
+	 * take no damage. For example, an explosion with inner radius 200 units and outer radius 500 units would deal
+	 * full damage within 200 units of the origin, scaling damage from 100% to 0% between 200-500 units. The
+	 * RadialDamageInnerRadius parameter is sourced from the damage effect configuration and stored in the context
+	 * so damage calculations can retrieve it when computing distance-based falloff.
+	 */
+	SetRadialDamageInnerRadius(EffectContexthandle, DamageEffectParams.RadialDamageInnerRadius);
+
+	/*
+	 * Store the radial damage outer radius from DamageEffectParams into the effect context using the
+	 * SetRadialDamageOuterRadius helper function. This float value (in Unreal units) defines the radius of the
+	 * outer boundary where radial damage drops to zero. Radial damage uses a two-radius falloff system: targets
+	 * within the inner radius take maximum damage, targets between the inner and outer radius (this value) take
+	 * linearly interpolated damage based on their distance from the origin, and targets beyond the outer radius
+	 * take no damage. For example, an explosion with inner radius 200 units and outer radius 500 units would deal
+	 * damage scaling from 100% to 0% between 200-500 units from the origin, with zero damage beyond 500 units.
+	 * The RadialDamageOuterRadius parameter is sourced from the damage effect configuration and stored in the
+	 * context so damage calculations can retrieve it when computing distance-based falloff.
+	 */
+	SetRadialDamageOuterRadius(EffectContexthandle, DamageEffectParams.RadialDamageOuterRadius);
+
+	/*
+	 * Store the radial damage origin point from DamageEffectParams into the effect context using the
+	 * SetRadialDamageOrigin helper function. This FVector represents the world space location (center point) from
+	 * which radial damage emanates and distance calculations are performed. For area-of-effect abilities like
+	 * explosions, shockwaves, or ground slams, this origin serves as the epicenter for determining damage falloff
+	 * based on target distance using the inner and outer radius values. For example, if an explosion occurs at
+	 * world location (1000, 500, 0), that position becomes the origin for measuring distances to all potential
+	 * targets, with closer targets taking more damage according to the falloff curve. The RadialDamageOrigin
+	 * parameter is sourced from the damage effect configuration and stored in the context so damage calculations
+	 * can retrieve it when computing distance-based damage values for each affected target.
+	 */
+	SetRadialDamageOrigin(EffectContexthandle, DamageEffectParams.RadialDamageOrigin);
 
 	/*
 	 * Create an outgoing gameplay effect spec handle from the source ability system component using the damage
