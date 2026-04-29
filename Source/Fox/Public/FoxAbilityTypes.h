@@ -243,6 +243,136 @@ struct FDamageEffectParams
 	 */
 	UPROPERTY(BlueprintReadWrite)
 	FVector KnockbackForce = FVector::ZeroVector;
+	
+	/**
+	 * Flag indicating whether this damage effect should use radial (area-of-effect) damage calculation.
+	 * 
+	 * When set to true, damage is applied to all targets within RadialDamageOuterRadius of the
+	 * RadialDamageOrigin point, with damage amount varying based on distance from the origin.
+	 * Targets within the RadialDamageInnerRadius receive full BaseDamage, while targets between
+	 * the inner and outer radii receive linearly interpolated damage that decreases with distance.
+	 * 
+	 * When set to false (default), damage is applied directly to a single target without distance-based
+	 * falloff calculations, using the standard single-target damage application logic.
+	 * 
+	 * TYPICAL USE CASES:
+	 * - Explosive abilities (fireballs, grenades, bombs)
+	 * - Ground slam attacks that damage nearby enemies
+	 * - Area denial spells with centered damage zones
+	 * - Shockwave or pulse abilities that radiate outward
+	 * 
+	 * This flag works in conjunction with RadialDamageInnerRadius, RadialDamageOuterRadius, and
+	 * RadialDamageOrigin to define the complete radial damage volume and falloff behavior.
+	 */
+	UPROPERTY(BlueprintReadWrite)
+	bool bIsRadialDamage = false;
+
+	/**
+	 * Inner radius (in Unreal units) defining the full-damage zone for radial damage effects.
+	 * 
+	 * All targets within this distance from RadialDamageOrigin receive 100% of the BaseDamage value
+	 * without any distance-based reduction. This creates a max damage zone at the center
+	 * of the radial effect, ensuring targets close to the epicenter take maximum damage.
+	 * 
+	 * The inner radius must be less than or equal to RadialDamageOuterRadius. The region between
+	 * the inner and outer radii forms the "falloff zone" where damage linearly decreases from 100%
+	 * (at inner radius boundary) to 0% (at outer radius boundary).
+	 * 
+	 * TYPICAL VALUES:
+	 * - Small focused explosions: 50.f - 150.f (tight full-damage zone)
+	 * - Medium area attacks: 150.f - 300.f (moderate full-damage zone)
+	 * - Large area effects: 300.f - 500.f+ (wide full-damage zone)
+	 * - Point-blank attacks: 0.f (no guaranteed zone, all damage falls off from origin)
+	 * 
+	 * EXAMPLE CONFIGURATIONS:
+	 * - Grenade: Inner=100.f, Outer=400.f (full damage within 1m, falloff to 4m)
+	 * - Fireball: Inner=200.f, Outer=600.f (full damage within 2m, falloff to 6m)
+	 * - Shockwave: Inner=0.f, Outer=800.f (linear falloff from center to 8m)
+	 * 
+	 * Only relevant when bIsRadialDamage is true. Has no effect on single-target damage.
+	 */
+	UPROPERTY(BlueprintReadWrite)
+	float RadialDamageInnerRadius = 0.f;
+
+	/**
+	 * Outer radius (in Unreal units) defining the maximum range of radial damage effects.
+	 * 
+	 * This value determines the boundary of the radial damage volume - targets beyond this distance
+	 * from RadialDamageOrigin receive no damage. Targets between RadialDamageInnerRadius and this
+	 * outer radius receive damage that linearly decreases based on their distance from the origin,
+	 * creating a smooth falloff effect.
+	 * 
+	 * The outer radius must be greater than or equal to RadialDamageInnerRadius. The difference
+	 * between these two values defines the "falloff zone" width:
+	 * - Narrow falloff zone (small difference): Damage drops sharply, creating distinct danger zones
+	 * - Wide falloff zone (large difference): Damage drops gradually, affecting larger area with partial damage
+	 * 
+	 * DAMAGE CALCULATION IN FALLOFF ZONE:
+	 * For a target at distance D from origin:
+	 * - If D <= InnerRadius: Damage = BaseDamage (100%)
+	 * - If InnerRadius < D <= OuterRadius: Damage = BaseDamage * (1 - (D - InnerRadius) / (OuterRadius - InnerRadius))
+	 * - If D > OuterRadius: Damage = 0 (target unaffected)
+	 * 
+	 * TYPICAL VALUES:
+	 * - Small explosions: 200.f - 400.f (localized damage area)
+	 * - Medium area attacks: 400.f - 800.f (moderate coverage)
+	 * - Large area effects: 800.f - 1500.f+ (wide area coverage)
+	 * 
+	 * EXAMPLE WITH POINT COLLECTION SYSTEM:
+	 * For abilities using APointCollection with 11 spawn points (Pt_0 through Pt_10):
+	 * - OuterRadius = 600.f allows hitting all points within a 6-meter radius
+	 * - Each spawned projectile/effect at these points can itself have radial damage
+	 * - This creates overlapping damage zones
+	 * 
+	 * Only relevant when bIsRadialDamage is true. Has no effect on single-target damage.
+	 */
+	UPROPERTY(BlueprintReadWrite)
+	float RadialDamageOuterRadius = 0.f;
+
+	/**
+	 * World-space location (in Unreal coordinates) serving as the epicenter of radial damage.
+	 * 
+	 * This FVector defines the center point from which radial damage radiates outward in all
+	 * directions. All distance calculations for damage falloff are measured from this origin point
+	 * to each target's location. Targets closer to this point receive more damage (up to full
+	 * BaseDamage within RadialDamageInnerRadius), while targets farther away receive progressively
+	 * less damage until reaching zero at RadialDamageOuterRadius.
+	 * 
+	 * COMMON ORIGIN POINT SOURCES:
+	 * 
+	 * 1. PROJECTILE IMPACT:
+	 *    For explosive projectiles, this is typically set to the hit location where the projectile
+	 *    struck (GetActorLocation() at impact or HitResult.Location). This makes the explosion
+	 *    radiate from the point of impact.
+	 * 
+	 * 2. ABILITY CASTER LOCATION:
+	 *    For point-blank area attacks (e.g., shockwave, ground slam), this is usually the caster's
+	 *    location (GetActorLocation() or GetAvatarActorFromActorInfo()->GetActorLocation()). This
+	 *    makes the damage radiate from the player's position.
+	 * 
+	 * 3. TARGETED GROUND LOCATION:
+	 *    For targeted AoE abilities using cursor placement, this is the ground location the player
+	 *    clicked (often retrieved from APointCollection::GetGroundPoints()[0] or mouse hit result).
+	 *    This allows players to choose where the radial damage should originate.
+	 * 
+	 * 4. SPAWNED ACTOR LOCATION:
+	 *    For abilities that spawn multiple damage sources (using APointCollection with Pt_0 through
+	 *    Pt_10), each spawned effect can have its own RadialDamageOrigin at that point's location.
+	 *    This creates multiple overlapping radial damage zones across the battlefield.
+	 * 
+	 * EXAMPLE SCENARIOS:
+	 * - Fireball ability: Origin = Fireball->GetActorLocation() when it explodes
+	 * - Ground slam: Origin = Player->GetActorLocation() at ability activation
+	 * - Meteor strike: Origin = Ground impact point selected by player cursor
+	 * - Multi-explosion ability: Origin = Each Pt_N location from point collection
+	 * 
+	 * The origin point remains fixed once set - it does not move even if the source actor moves
+	 * after the damage effect is applied (this ensures consistent damage zones).
+	 * 
+	 * Only relevant when bIsRadialDamage is true. Has no effect on single-target damage.
+	 */
+	UPROPERTY(BlueprintReadWrite)
+	FVector RadialDamageOrigin = FVector::ZeroVector;
 };
 
 USTRUCT(BlueprintType)
@@ -278,6 +408,62 @@ public:
 	// Returns the KnockbackForce this vector defines both the direction and magnitude of the physical force that displaces
 	// a living character when they take damage (unlike DeathImpulse which only applies on death).
 	FVector GetKnockbackForce() const { return KnockbackForce; }
+	
+	/**
+	 * Returns whether this damage effect uses radial (area-of-effect) damage calculation.
+	 * 
+	 * When true, damage is applied to all targets within RadialDamageOuterRadius of the
+	 * RadialDamageOrigin point, with damage amount varying based on distance from the origin.
+	 * When false, damage is applied directly to a single target without distance-based falloff.
+	 * 
+	 * This flag works in conjunction with GetRadialDamageInnerRadius(), GetRadialDamageOuterRadius(),
+	 * and GetRadialDamageOrigin() to define the complete radial damage volume and behavior.
+	 * 
+	 * @return true if radial damage is enabled, false for single-target damage
+	 */
+	bool IsRadialDamage() const { return bIsRadialDamage; }
+
+	/**
+	 * Returns the inner radius (in Unreal units) defining the full-damage zone for radial damage.
+	 * 
+	 * All targets within this distance from the radial damage origin receive 100% of the base
+	 * damage value without any distance-based reduction. The region between this inner radius
+	 * and the outer radius forms the "falloff zone" where damage linearly decreases from 100%
+	 * to 0% based on distance from origin.
+	 * 
+	 * Only relevant when IsRadialDamage() returns true. Has no effect on single-target damage.
+	 * 
+	 * @return Inner radius in Unreal units for the full-damage zone, or 0.f if not set
+	 */
+	float GetRadialDamageInnerRadius() const { return RadialDamageInnerRadius; }
+
+	/**
+	 * Returns the outer radius (in Unreal units) defining the maximum range of radial damage.
+	 * 
+	 * This value determines the boundary of the radial damage volume - targets beyond this
+	 * distance from the radial damage origin receive no damage. Targets between the inner
+	 * and outer radii receive damage that linearly decreases based on their distance from
+	 * the origin, creating a smooth falloff effect.
+	 * 
+	 * Only relevant when IsRadialDamage() returns true. Has no effect on single-target damage.
+	 * 
+	 * @return Outer radius in Unreal units for maximum damage range, or 0.f if not set
+	 */
+	float GetRadialDamageOuterRadius() const { return RadialDamageOuterRadius; }
+
+	/**
+	 * Returns the world-space location (in Unreal coordinates) serving as the epicenter of radial damage.
+	 * 
+	 * This vector defines the center point from which radial damage radiates outward in all
+	 * directions. All distance calculations for damage falloff are measured from this origin
+	 * point to each target's location. Common sources include projectile impact locations,
+	 * caster positions for point-blank AoE, or player-targeted ground locations.
+	 * 
+	 * Only relevant when IsRadialDamage() returns true. Has no effect on single-target damage.
+	 * 
+	 * @return World-space FVector representing the radial damage epicenter, or ZeroVector if not set
+	 */
+	FVector GetRadialDamageOrigin() const { return RadialDamageOrigin; }
 
 	// Functions that Set the values of the bIsCriticalHit and bIsBlockedHit member variables
 	void SetIsCriticalHit(bool bInIsCriticalHit) { bIsCriticalHit = bInIsCriticalHit; }
@@ -329,6 +515,30 @@ public:
 	// Returns the KnockbackForce this vector defines both the direction and magnitude of the physical force that displaces
 	// a living character when they take damage (unlike DeathImpulse which only applies on death).
 	void SetKnockbackForce(const FVector& InForce) { KnockbackForce = InForce; }
+	
+	/**
+	 * Sets whether this damage effect uses radial (area-of-effect) damage calculation.
+	 * See IsRadialDamage() and bIsRadialDamage for detailed documentation.
+	 */
+	void SetIsRadialDamage(bool bInIsRadialDamage) { bIsRadialDamage = bInIsRadialDamage; }
+
+	/**
+	 * Sets the inner radius defining the full-damage zone for radial damage effects.
+	 * See GetRadialDamageInnerRadius() and RadialDamageInnerRadius for detailed documentation.
+	 */
+	void SetRadialDamageInnerRadius(float InRadialDamageInnerRadius) { RadialDamageInnerRadius = InRadialDamageInnerRadius; }
+
+	/**
+	 * Sets the outer radius defining the maximum range of radial damage effects.
+	 * See GetRadialDamageOuterRadius() and RadialDamageOuterRadius for detailed documentation.
+	 */
+	void SetRadialDamageOuterRadius(float InRadialDamageOuterRadius) { RadialDamageOuterRadius = InRadialDamageOuterRadius; }
+
+	/**
+	 * Sets the world-space location serving as the epicenter of radial damage.
+	 * See GetRadialDamageOrigin() and RadialDamageOrigin for detailed documentation.
+	 */
+	void SetRadialDamageOrigin(const FVector& InRadialDamageOrigin) { RadialDamageOrigin = InRadialDamageOrigin; }
 	
 	// Copied from the class we are inheriting from
 	/** Returns the actual struct used for serialization, subclasses must override this! */
@@ -495,6 +705,38 @@ protected:
 	 */
 	UPROPERTY()
 	FVector KnockbackForce = FVector::ZeroVector;
+	
+	/**
+	 * Flag indicating whether this damage effect uses radial (area-of-effect) damage calculation.
+	 * When true, damage is applied to all targets within RadialDamageOuterRadius of RadialDamageOrigin
+	 * with distance-based falloff. See FDamageEffectParams::bIsRadialDamage for detailed documentation.
+	 */
+	UPROPERTY()
+	bool bIsRadialDamage = false;
+
+	/**
+	 * Inner radius defining the full-damage zone for radial damage effects (in Unreal units).
+	 * Targets within this distance from RadialDamageOrigin receive 100% damage without falloff.
+	 * See FDamageEffectParams::RadialDamageInnerRadius for detailed documentation.
+	 */
+	UPROPERTY()
+	float RadialDamageInnerRadius = 0.f;
+
+	/**
+	 * Outer radius defining the maximum range of radial damage effects (in Unreal units).
+	 * Targets beyond this distance from RadialDamageOrigin receive no damage. Damage falls off
+	 * linearly between inner and outer radii. See FDamageEffectParams::RadialDamageOuterRadius for detailed documentation.
+	 */
+	UPROPERTY()
+	float RadialDamageOuterRadius = 0.f;
+
+	/**
+	 * World-space location serving as the epicenter of radial damage.
+	 * All distance calculations for damage falloff are measured from this origin point.
+	 * See FDamageEffectParams::RadialDamageOrigin for detailed documentation and usage examples.
+	 */
+	UPROPERTY()
+	FVector RadialDamageOrigin = FVector::ZeroVector;
 };
 
 /**

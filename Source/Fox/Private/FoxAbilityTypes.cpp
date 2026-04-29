@@ -85,11 +85,28 @@ bool FFoxGameplayEffectContext::NetSerialize(FArchive& Ar, class UPackageMap* Ma
 		{
 			RepBits |= 1 << 15;
 		}
+		if (bIsRadialDamage)
+		{
+			RepBits |= 1 << 16;
+
+			if (RadialDamageInnerRadius > 0.f)
+			{
+				RepBits |= 1 << 17;
+			}
+			if (RadialDamageOuterRadius > 0.f)
+			{
+				RepBits |= 1 << 18;
+			}
+			if (!RadialDamageOrigin.IsZero())
+			{
+				RepBits |= 1 << 19;
+			}
+		}
 	}
 
 	// Calls the SerializeBits function on the archive passing in a pointer (the address of) to RepBits and the number of bits used in 
-	// RepBits to indicate variables to serialize. '1 << 13' is used to move the 1 bit to the 14th position.
-	Ar.SerializeBits(&RepBits, 16);
+	// RepBits to indicate variables to serialize. '1 << 19' is used to move the 1 bit to the 20th position.
+	Ar.SerializeBits(&RepBits, 20);
 
 	if (RepBits & (1 << 0))
 	{
@@ -219,6 +236,25 @@ bool FFoxGameplayEffectContext::NetSerialize(FArchive& Ar, class UPackageMap* Ma
 	{
 		KnockbackForce.NetSerialize(Ar, Map, bOutSuccess);
 	}
+	
+	if (RepBits & (1 << 16))
+	{
+		Ar << bIsRadialDamage;
+		
+		if (RepBits & (1 << 17))
+		{
+			Ar << RadialDamageInnerRadius;
+		}
+		if (RepBits & (1 << 18))
+		{
+			Ar << RadialDamageOuterRadius;
+		}
+		if (RepBits & (1 << 19))
+		{
+			RadialDamageOrigin.NetSerialize(Ar, Map, bOutSuccess);
+		}
+	}
+	
 	// The following was copied from the function we are overriding
 	// Checks if the archive is being loaded
 	if (Ar.IsLoading())

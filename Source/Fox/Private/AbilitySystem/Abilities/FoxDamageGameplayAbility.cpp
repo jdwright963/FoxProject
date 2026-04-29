@@ -200,7 +200,35 @@ FDamageEffectParams UFoxDamageGameplayAbility::MakeDamageEffectParamsFromClassDe
 		// The result is a vector pointing 45 degrees upward toward the target with the specified magnitude
 		Params.KnockbackForce = ToTarget * KnockbackForceMagnitude;
 	}
+	
+	// Check if this ability is configured to deal radial/area-of-effect damage instead of single-target damage
+	// bIsRadialDamage is a UPROPERTY boolean set in the ability's Blueprint or class defaults
+	// When true, damage is applied to all actors within a spherical radius rather than just one target
+	// This enables abilities like explosions, shockwaves, or area denials that affect multiple targets simultaneously
+	if (bIsRadialDamage)
+	{
+		// In the params struct enable radial damage mode by copying the class default boolean value
+		// This flag tells the damage application system to use radial damage calculations instead of direct application
+		// The receiving system will iterate through all actors within the specified radius and apply damage based on distance
+		Params.bIsRadialDamage = bIsRadialDamage;
 
+		// In the params struct set the world-space origin point from which radial damage emanates and distance calculations are measured
+		// RadialDamageOrigin is typically set to a projectile impact location, spell effect center, or explosion epicenter
+		// All targets' distances are calculated from this point to determine damage falloff
+		Params.RadialDamageOrigin = RadialDamageOrigin;
+
+		// In the params struct set the inner radius (in Unreal units) within which targets receive 100% of the base damage with no falloff
+		// Actors inside this radius are in the "full damage zone" and take maximum damage regardless of their exact position
+		// This creates a guaranteed lethal/high-damage core area for powerful abilities like explosions
+		Params.RadialDamageInnerRadius = RadialDamageInnerRadius;
+
+		// In the params struct set the outer radius (in Unreal units) that defines the maximum range of the radial damage effect
+		// Actors between the inner and outer radius receive damage that linearly interpolates from 100% to 0% based on distance
+		// Actors beyond this radius take no damage at all, making this the ability's effective area-of-effect boundary
+		// The falloff zone (between inner and outer radius) allows for more realistic and balanced damage distribution
+		Params.RadialDamageOuterRadius = RadialDamageOuterRadius;
+	}
+	
 	// Return the fully populated damage parameters struct to the caller
 	// The caller (typically a Blueprint or C++ function) can now pass this struct to damage application systems
 	// without needing to manually gather and configure all these individual values

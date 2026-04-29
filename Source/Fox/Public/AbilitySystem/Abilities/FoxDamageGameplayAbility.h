@@ -196,6 +196,22 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Damage")
 	float KnockbackChance = 0.f;
 	
+	// Enables radial (area-of-effect) damage instead of single-target damage
+	UPROPERTY(EditDefaultsOnly, Category = "Damage")
+	bool bIsRadialDamage = false;
+
+	// Inner radius where targets receive full damage with no falloff
+	UPROPERTY(EditDefaultsOnly, Category = "Damage")
+	float RadialDamageInnerRadius = 0.f;
+
+	// Outer radius where damage falls off to zero; targets between inner and outer radius receive scaled damage
+	UPROPERTY(EditDefaultsOnly, Category = "Damage")
+	float RadialDamageOuterRadius = 0.f;
+
+	// World-space origin point from which radial damage distance is calculated
+	UPROPERTY(EditDefaultsOnly, Category = "Damage")
+	FVector RadialDamageOrigin = FVector::ZeroVector;
+	
 	// Returns a random TaggedMontage from an array of them
 	UFUNCTION(BlueprintPure)
 	FTaggedMontage GetRandomTaggedMontageFromArray(const TArray<FTaggedMontage>& TaggedMontages) const;
