@@ -177,6 +177,26 @@ void AFoxCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(AFoxCharacterBase, bIsBeingShocked);
 }
 
+float AFoxCharacterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+	AActor* DamageCauser)
+{
+	// Calls the parent class (ACharacter) implementation of TakeDamage to handle base damage processing logic (such as 
+	// applying damage to health attributes in the GAS system if configured) and returns the actual amount of damage that 
+	// was applied after all calculations. The returned value is stored in DamageTaken for broadcasting to listeners and 
+	// returning to the caller, ensuring consistent damage reporting across the damage pipeline
+	const float DamageTaken = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	// Broadcasts the OnDamageDelegate multicast delegate to notify all registered listeners (such as UI widgets for 
+	// floating damage text, damage tracking systems, or audio/visual effect systems) that this character has taken damage, 
+	// passing the actual DamageTaken amount as a parameter so listeners can respond appropriately with the correct damage value
+	OnDamageDelegate.Broadcast(DamageTaken);
+
+	// Returns the actual damage amount that was applied to this character back to the caller (typically the damage system 
+	// or the actor that caused the damage), allowing them to use this information for gameplay logic, logging, or further 
+	// damage calculations (such as calculating overkill damage or triggering special effects based on damage thresholds)
+	return DamageTaken;
+}
+
 UAbilitySystemComponent* AFoxCharacterBase::GetAbilitySystemComponent() const
 {
 	// Returns the character's ability system component.
@@ -461,6 +481,16 @@ bool AFoxCharacterBase::IsBeingShocked_Implementation() const
 	// systems to check if the character is actively being shocked, enabling proper visual feedback and 
 	// gameplay logic decisions
 	return bIsBeingShocked;
+}
+
+FOnDamageSignature& AFoxCharacterBase::GetOnDamageSignature()
+{
+	// Returns a reference to the OnDamageDelegate multicast delegate, which allows external systems (such as UI widgets,
+	// floating text components, or damage tracking systems) to register callbacks that will be invoked when this character
+	// takes damage. This delegate is broadcast in the TakeDamage() function with the damage amount as a parameter, enabling
+	// any registered listeners to respond appropriately to damage events, such as displaying damage numbers, updating health
+	// bars, or triggering damage-related visual/audio effects
+	return OnDamageDelegate;
 }
 
 void AFoxCharacterBase::StunTagChanged(const FGameplayTag CallbackTag, int32 NewCount)

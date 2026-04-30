@@ -20,7 +20,6 @@ class UAbilitySystemComponent;
 class UAttributeSet;
 class UAnimMontage;
 
-
 // IAbilitySystemInterface is an Unreal Engine interface that provides a standardized way to access 
 // an actor's Ability System Component (ASC). By implementing this interface, our character can work 
 // with the Gameplay Ability System (GAS) and allows other systems to query for the ASC using 
@@ -68,6 +67,16 @@ public:
 	// that when these debuff states change on the server, clients are automatically notified and can respond with
 	// appropriate visual/audio feedback through their OnRep callbacks (OnRep_Stunned and OnRep_Burned).
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;
+	
+	// Overridden from AActor to handle damage applied to this character. This function is called by the engine's damage
+	// system whenever damage is dealt to this actor (e.g., through UGameplayStatics::ApplyDamage or similar functions).
+	// Parameters:
+	//   - DamageAmount: The amount of damage being applied to the character
+	//   - DamageEvent: Contains information about the type of damage and additional context
+	//   - EventInstigator: The controller responsible for causing the damage (e.g., player controller, AI controller)
+	//   - DamageCauser: The actual actor that caused the damage (e.g., projectile, weapon, explosion)
+	// Returns: The actual amount of damage applied after any modifications or mitigation
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	
 	// This function must be overridden to implement IAbilitySystemInterface. The getter for the attribute set
 	// was made for convenience.
@@ -148,6 +157,13 @@ public:
 	// ability without modifying the state.
 	virtual bool IsBeingShocked_Implementation() const override;
 	
+	// Overrided function from CombatInterface that returns a reference to the FOnDamageSignature delegate, allowing external
+	// systems to bind callbacks that execute when this character takes damage. This enables other components and systems
+	// to respond to damage events (e.g., updating UI elements like health bars, playing damage sounds, triggering visual
+	// effects, or logging combat statistics). The delegate provides damage information to bound callbacks, allowing them
+	// to react appropriately to the amount of damage received.
+	virtual FOnDamageSignature& GetOnDamageSignature() override;
+	
 	/** end Combat Interface */
 	
 	// Delegate that broadcasts when this character's Ability System Component has been registered and initialized.
@@ -156,13 +172,20 @@ public:
 	// For example, UDebuffNiagaraComponent uses this to register gameplay tag listeners once the ASC is ready.
 	// This delegate type is inherited from CombatInterface
 	FOnASCRegistered OnAscRegistered;
-
-	// Delegate that broadcasts when this character dies. External systems can bind to this delegate via
+	
+	// Delegate that we broadcast when this character dies. External systems can bind to this delegate via
 	// GetOnDeathDelegate() to receive a callback when death occurs, allowing them to respond appropriately
 	// (e.g., UDebuffNiagaraComponent deactivates particle effects, UI systems update death counts, etc.).
 	// The delegate passes the dead actor as a parameter to provide context to bound callbacks.
 	// This delegate type is inherited from CombatInterface
 	FOnDeathSignature OnDeathDelegate;
+	
+	// Delegate that we broadcast when this character takes damage. External systems can bind to this delegate via
+	// GetOnDamageSignature() to receive callbacks when damage occurs, allowing them to respond appropriately
+	// (e.g., updating UI health bars, playing damage sounds, triggering visual effects like damage numbers, logging
+	// combat statistics). The delegate passes damage information to bound callbacks, enabling them to react based on
+	// the amount of damage received. This delegate type is inherited from CombatInterface.
+	FOnDamageSignature OnDamageDelegate;
 	
 	// Multicast RPC (called on the server and executed on the server and every client currently connected to the game)
 	// that handles what happens on all clients when the character dies. Takes a DeathImpulse parameter which is a vector representing

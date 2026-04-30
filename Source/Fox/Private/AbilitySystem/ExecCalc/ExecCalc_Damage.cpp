@@ -10,6 +10,7 @@
 #include "AbilitySystem/FoxAttributeSet.h"
 #include "AbilitySystem/Data/CharacterClassInfo.h"
 #include "Interaction/CombatInterface.h"
+#include "Kismet/GameplayStatics.h"
 
 
 /**
@@ -435,6 +436,9 @@ void UExecCalc_Damage::Execute_Implementation(const FGameplayEffectCustomExecuti
 	// Gets the gameplay effect spec that is being executed and is the owner of this execution calculation class instance
 	const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
 	
+	// Access the Gameplay Effect Context associated with the Gameplay Effect using this Exec Calc, and set its blocked boolean
+	FGameplayEffectContextHandle EffectContextHandle = Spec.GetContext();
+	
 	// Retrieves all gameplay tags that were captured from the source and target actors when the effect spec was created
 	const FGameplayTagContainer* SourceTags = Spec.CapturedSourceTags.GetAggregatedTags();
 	const FGameplayTagContainer* TargetTags = Spec.CapturedTargetTags.GetAggregatedTags();
@@ -548,7 +552,6 @@ void UExecCalc_Damage::Execute_Implementation(const FGameplayEffectCustomExecuti
 		// Variable to store the value of the current resistance attribute in this iteration of the loop
 		float Resistance = 0.f;
 		
-		
 		/*
 		ExecutionParams is a const reference to FGameplayEffectCustomExecutionParameters - a struct that provides 
 		context and utility functions for execution calculations. It contains the owning spec, source/target ASCs,
@@ -573,6 +576,96 @@ void UExecCalc_Damage::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 		// Each point in resistance reduces the damage of its corresponding type by 1% of the total damage
 		DamageTypeValue *= ( 100.f - Resistance ) / 100.f;
+		
+		/*
+		Checks if this damage should be applied as radial/area-of-effect damage by querying the effect context handle
+		for a custom boolean flag that was set when the ability created the gameplay effect spec.
+		*/
+		if (UFoxAbilitySystemLibrary::IsRadialDamage(EffectContextHandle))
+		{
+			/*
+			Attempts to cast the TargetAvatar to the ICombatInterface to check if this actor implements
+			the combat interface, storing the result in CombatInterface pointer variable.
+			*/
+			if (ICombatInterface* CombatInterface = Cast<ICombatInterface>(TargetAvatar))
+			{
+				/*
+				Retrieves the OnDamageSignature multicast delegate from the CombatInterface and adds a lambda callback function that
+				will be invoked when ApplyRadialDamageWithFalloff broadcasts damage events to this target. The lambda captures all
+				local variables by reference [&] so it can modify DamageTypeValue when the delegate fires with the final damage amount.
+				*/
+				CombatInterface->GetOnDamageSignature().AddLambda([&](float DamageAmount)
+				{
+					/*
+					Updates the DamageTypeValue variable with the final distance-adjusted damage amount calculated by the radial damage
+					system, replacing the original maximum damage value with the actual damage this specific target should receive based
+					on their distance from the explosion origin and falloff curve calculations.
+					*/
+					DamageTypeValue = DamageAmount;
+				});
+			}
+			/*
+			Calls Unreal's built-in radial damage system that uses physics traces to find all actors within a spherical radius,
+			calculates distance-based damage falloff for each hit actor, and broadcasts damage events through their damage
+			handling interfaces.
+
+			Parameters:
+			- WorldContextObject (TargetAvatar): The UObject that provides the world context for the damage trace, determining which
+			  UWorld instance to perform the radial damage query in. We use TargetAvatar as a convenience since we already have it
+			  available and any actor in the world provides valid world context.
+			  
+			- BaseDamage (DamageTypeValue): The maximum damage dealt at the inner radius. Actors exactly at or within the inner
+			  radius receive this full damage amount before any other modifiers are applied.
+			  
+			- MinimumDamage (0.f): The minimum damage dealt at the outer radius. Actors at the outer radius boundary receive this
+			  damage amount. We set this to 0 to ensure actors at maximum range take no damage, creating a clear damage cutoff.
+			  
+			- Origin (GetRadialDamageOrigin): The world-space 3D point (FVector) that serves as the center of the damage sphere.
+			  All distance calculations radiate outward from this point to determine falloff for each hit actor.
+			  
+			- DamageInnerRadius (GetRadialDamageInnerRadius): The radius in Unreal units within which actors receive full BaseDamage
+			  with no falloff. Actors closer than this distance to the origin take maximum damage.
+			  
+			- DamageOuterRadius (GetRadialDamageOuterRadius): The maximum radius in Unreal units at which damage can be dealt.
+			  Actors beyond this distance take no damage. Damage falls off linearly between inner and outer radius.
+			  
+			- DamageFalloff (1.f): The exponent that controls the falloff curve shape. 1.0 creates linear falloff, values greater
+			  than 1.0 create exponential falloff (damage drops faster near outer radius), values less than 1.0 create logarithmic
+			  falloff (damage drops slower). We use 1.0 for simple linear interpolation between min and max damage.
+			  
+			- DamageTypeClass (UDamageType::StaticClass()): The class type that categorizes this damage for gameplay systems.
+			  We use the base UDamageType since we handle damage type categorization through our own gameplay tag system rather
+			  than Unreal's damage type class hierarchy.
+			  
+			- IgnoreActors (TArray<AActor*>()): An array of actor pointers to exclude from the damage trace. We pass an empty
+			  array since we want to damage all valid actors in the radius without exceptions.
+			  
+			- DamageCauser (SourceAvatar): The actor responsible for causing the damage, typically the attacker or projectile.
+			  This is used for gameplay logic, AI threat systems, and damage attribution. We pass the source avatar since they
+			  are the originator of this damage effect.
+			  
+			- InstigatorController (nullptr): The controller (player or AI) that initiated the damage event. We pass nullptr
+			  because we don't need controller-level attribution for our damage system and the DamageCauser already provides
+			  sufficient information for gameplay purposes.
+
+			   ApplyRadialDamageWithFalloff routes damage through Unreal's damage system, which calls TakeDamage() on affected actors.
+			   For AFoxCharacterBase targets, our TakeDamage() override broadcasts OnDamageDelegate with the final damage amount after
+			   Unreal's radial falloff calculation. The lambda bound above captures that broadcast for TargetAvatar and updates
+			   DamageTypeValue to the distance-adjusted damage amount.
+			*/
+			UGameplayStatics::ApplyRadialDamageWithFalloff(
+				TargetAvatar,
+				DamageTypeValue,
+				0.f,
+				UFoxAbilitySystemLibrary::GetRadialDamageOrigin(EffectContextHandle),
+				UFoxAbilitySystemLibrary::GetRadialDamageInnerRadius(EffectContextHandle),
+				UFoxAbilitySystemLibrary::GetRadialDamageOuterRadius(EffectContextHandle),
+				1.f,
+				UDamageType::StaticClass(),
+				TArray<AActor*>(),
+				SourceAvatar,
+				nullptr);
+		}
 
 		// Accumulates the damage value for this damage type into the running total, allowing abilities to deal
 		// multiple types of damage simultaneously (e.g., 50 fire + 25 lightning = 75 total base damage).
@@ -595,9 +688,6 @@ void UExecCalc_Damage::Execute_Implementation(const FGameplayEffectCustomExecuti
 	// if the attack was blocked. If the random number is less than BlockChance, the block succeeds (e.g., 25 BlockChance 
 	// means 25% chance to block).
 	const bool bBlocked = FMath::RandRange(1, 100) < TargetBlockChance;
-	
-	// Access the Gameplay Effect Context associated with the Gameplay Effect using this Exec Calc, and set its blocked boolean
-	FGameplayEffectContextHandle EffectContextHandle = Spec.GetContext();
 	
 	// Set the blocked hit boolean in the effect context to the value of bBlocked
 	UFoxAbilitySystemLibrary::SetIsBlockedHit(EffectContextHandle, bBlocked);
