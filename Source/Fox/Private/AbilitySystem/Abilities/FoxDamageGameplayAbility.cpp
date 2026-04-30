@@ -82,7 +82,7 @@ void UFoxDamageGameplayAbility::CauseDamage(AActor* TargetActor)
 	GetAbilitySystemComponentFromActorInfo()->ApplyGameplayEffectSpecToTarget(*DamageSpecHandle.Data.Get(), UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor));
 }
 
-FDamageEffectParams UFoxDamageGameplayAbility::MakeDamageEffectParamsFromClassDefaults(AActor* TargetActor) const
+FDamageEffectParams UFoxDamageGameplayAbility::MakeDamageEffectParamsFromClassDefaults(AActor* TargetActor, FVector InRadialDamageOrigin) const
 {
 	// Declare and default constructs a FDamageEffectParams struct to aggregate all damage-related configuration
 	// This struct serves as a data container that bundles together all the parameters needed for damage application
@@ -214,9 +214,10 @@ FDamageEffectParams UFoxDamageGameplayAbility::MakeDamageEffectParamsFromClassDe
 
 		// In the params struct set the world-space origin point from which radial damage emanates and distance calculations are measured
 		// RadialDamageOrigin is typically set to a projectile impact location, spell effect center, or explosion epicenter
-		// All targets' distances are calculated from this point to determine damage falloff
-		Params.RadialDamageOrigin = RadialDamageOrigin;
-
+		// All targets' distances are calculated from this point to determine damage falloff. The value it is set to is 
+		// determined by the input parameter InRadialDamageOrigin.
+		Params.RadialDamageOrigin = InRadialDamageOrigin;
+		
 		// In the params struct set the inner radius (in Unreal units) within which targets receive 100% of the base damage with no falloff
 		// Actors inside this radius are in the "full damage zone" and take maximum damage regardless of their exact position
 		// This creates a guaranteed lethal/high-damage core area for powerful abilities like explosions

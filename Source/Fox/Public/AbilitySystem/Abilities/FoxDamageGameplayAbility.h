@@ -60,6 +60,9 @@ public:
 	 * - Source ability system component (from GetAbilitySystemComponentFromActorInfo())
 	 * - Damage type tag and magnitude (evaluated at current ability level via Damage.GetValueAtLevel())
 	 * - Debuff parameters (chance, damage, frequency, duration)
+	 * - Radial damage parameters (inner/outer radius, origin point)
+	 * - Knockback parameters (force magnitude, chance)
+	 * - Death impulse magnitude
 	 * - Optional target actor for additional context
 	 * 
 	 * This method is const-qualified because it only reads member variables without modifying
@@ -69,13 +72,19 @@ public:
 	 * @param TargetActor Optional actor reference to include in the damage parameters. Defaults to nullptr
 	 *                    if not provided. This can be used by damage execution calculations or attribute
 	 *                    capture to query target-specific information (level, resistances, etc.).
+	 * @param InRadialDamageOrigin World-space origin point for radial damage calculations. Defaults to FVector::ZeroVector.
+	 *                             When bIsRadialDamage is true, this function uses this input parameter to override the value of 
+	 *                             the RadialDamageOrigin member variable, 
+	 *                             allowing dynamic specification of the damage epicenter (e.g., projectile
+	 *                             impact location, spell ground target). When bIsRadialDamage is false, this parameter
+	 *                             is ignored and has no effect on damage application.
 	 * @return FDamageEffectParams struct containing all damage configuration from this ability's defaults,
 	 *         ready to be used with UFoxAbilitySystemLibrary::ApplyDamageEffect() or similar functions.
 	 *         
 	 * This function is exposed to Blueprint as BlueprintPure because it only reads data and does not modify it
 	 */
 	UFUNCTION(BlueprintPure)
-	FDamageEffectParams MakeDamageEffectParamsFromClassDefaults(AActor* TargetActor = nullptr) const;
+	FDamageEffectParams MakeDamageEffectParamsFromClassDefaults(AActor* TargetActor = nullptr, FVector InRadialDamageOrigin = FVector::ZeroVector) const;
 	
 	
 	UFUNCTION(BlueprintPure)
@@ -201,16 +210,12 @@ protected:
 	bool bIsRadialDamage = false;
 
 	// Inner radius where targets receive full damage with no falloff
-	UPROPERTY(EditDefaultsOnly, Category = "Damage")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
 	float RadialDamageInnerRadius = 0.f;
 
 	// Outer radius where damage falls off to zero; targets between inner and outer radius receive scaled damage
-	UPROPERTY(EditDefaultsOnly, Category = "Damage")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
 	float RadialDamageOuterRadius = 0.f;
-
-	// World-space origin point from which radial damage distance is calculated
-	UPROPERTY(EditDefaultsOnly, Category = "Damage")
-	FVector RadialDamageOrigin = FVector::ZeroVector;
 	
 	// Returns a random TaggedMontage from an array of them
 	UFUNCTION(BlueprintPure)

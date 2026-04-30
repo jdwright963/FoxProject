@@ -394,14 +394,34 @@ public:
 	UFUNCTION(BlueprintPure, Category = "FoxAbilitySystemLibrary|GameplayMechanics")
 	static bool IsNotFriend(AActor* FirstActor, AActor* SecondActor);
 	
-	// Function to apply a damage gameplay effect to a target actor using the provided damage parameters
-	// This is a centralized utility function that handles the complete damage application pipeline.
+	// Function to apply a damage effect to a target actor using the Gameplay Ability System
+	// This is a utility function that creates and applies a gameplay effect spec based on the provided damage parameters
+	// It handles the entire process of creating a gameplay effect context, populating it with damage-related data
+	// (such as damage type, debuff information, knockback force, death impulse, radial damage parameters, etc.),
+	// and applying the effect to the target's Ability System Component
 	// 
-	// Returns: FGameplayEffectContextHandle containing the context of the applied damage effect, which can be
-	//          used to query information about the damage application (source, target, hit result, custom data)
+	// DamageEffectParams: A struct containing all necessary parameters for applying damage, including:
+	//                     - WorldContextObject: Context for accessing the world and game mode
+	//                     - DamageGameplayEffectClass: The gameplay effect class to instantiate and apply
+	//                     - SourceAbilitySystemComponent: The ASC of the actor dealing the damage
+	//                     - TargetAbilitySystemComponent: The ASC of the actor receiving the damage
+	//                     - BaseDamage: The base amount of damage to apply before any modifications
+	//                     - AbilityLevel: The level of the ability causing the damage (used for scaling)
+	//                     - DamageType: Gameplay tag identifying the type of damage (Fire, Lightning, etc.)
+	//                     - DebuffChance: The probability of successfully applying a debuff effect
+	//                     - DebuffDamage: The damage applied per tick if the debuff is successful
+	//                     - DebuffDuration: How long the debuff effect lasts
+	//                     - DebuffFrequency: How often the debuff applies damage
+	//                     - DeathImpulse: The physical impulse to apply to ragdoll on death
+	//                     - KnockbackForce: The force to apply for knockback effect
+	//                     - KnockbackChance: The probability of successfully applying knockback
+	//                     - And other damage-related parameters (radial damage settings, etc.)
 	// 
-	// BlueprintCallable: This function can be called from Blueprint graphs, allowing designers to apply
-	//                    damage effects with full parameter control without writing C++ code
+	// Returns: FGameplayEffectContextHandle containing the context of the applied gameplay effect, which can be used
+	//          to query information about the effect after it has been applied (e.g., whether it was blocked, critical, etc.)
+	// 
+	// BlueprintCallable: This function can be called from Blueprint graphs, allowing designers to apply damage effects
+	//                    without writing C++ code, making it easier to create abilities and damage systems in Blueprint
 	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|DamageEffect")
 	static FGameplayEffectContextHandle ApplyDamageEffect(const FDamageEffectParams& DamageEffectParams);
 	

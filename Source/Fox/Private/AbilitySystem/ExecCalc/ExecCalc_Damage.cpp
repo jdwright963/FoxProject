@@ -553,6 +553,22 @@ void UExecCalc_Damage::Execute_Implementation(const FGameplayEffectCustomExecuti
 		float Resistance = 0.f;
 		
 		/*
+		Checks if the damage value for this damage type is less than or equal to zero, which indicates that this damage
+		type was not set via SetByCaller on the gameplay effect spec (GetSetByCallerMagnitude returns 0.f for unset tags
+		by default). If this damage type was not specified, we skip processing it and move to the next damage type in the
+		loop, since there's no damage to calculate resistance or accumulate for this type.
+		*/
+		if (DamageTypeValue <= 0.f)
+		{
+			/*
+			Skips the remainder of this loop iteration and immediately jumps to the next iteration of the for loop,
+			moving on to check the next damage type/resistance pair in the DamageTypesToResistances map without executing
+			the resistance calculation, damage reduction, or damage accumulation code below for this damage type.
+			*/
+			continue;
+		}
+		
+		/*
 		ExecutionParams is a const reference to FGameplayEffectCustomExecutionParameters - a struct that provides 
 		context and utility functions for execution calculations. It contains the owning spec, source/target ASCs,
 		and methods to retrieve captured attribute values.
