@@ -11,3 +11,6 @@
 
 // Creates an alias for Target collision channel we created in the editor project settings
 #define ECC_Target ECollisionChannel::ECC_GameTraceChannel2
+
+// Creates an alias for ExcludePlayers collision channel we created in the editor project settings
+#define ECC_ExcludePlayers ECollisionChannel::ECC_GameTraceChannel3

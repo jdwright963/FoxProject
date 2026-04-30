@@ -13,6 +13,7 @@
 #include "Actor/MagicCircle.h"
 #include "Components/DecalComponent.h"
 #include "Components/SplineComponent.h"
+#include "Fox/Fox.h"
 #include "GameFramework/Character.h"
 #include "Input/FoxInputComponent.h"
 #include "Interaction/EnemyInterface.h"
@@ -264,7 +265,9 @@ void AFoxPlayerController::CursorTrace()
 		return;
 	}
 	
-	GetHitResultUnderCursor(ECC_Visibility, false, CursorHit);
+	const ECollisionChannel TraceChannel = IsValid(MagicCircle) ? ECC_ExcludePlayers : ECC_Visibility;
+	
+	GetHitResultUnderCursor(TraceChannel, false, CursorHit);
 	if (!CursorHit.IsValidBlockingHit()) return;
 	
 	/*
