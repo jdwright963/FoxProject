@@ -82,7 +82,9 @@ void UFoxDamageGameplayAbility::CauseDamage(AActor* TargetActor)
 	GetAbilitySystemComponentFromActorInfo()->ApplyGameplayEffectSpecToTarget(*DamageSpecHandle.Data.Get(), UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor));
 }
 
-FDamageEffectParams UFoxDamageGameplayAbility::MakeDamageEffectParamsFromClassDefaults(AActor* TargetActor, FVector InRadialDamageOrigin) const
+FDamageEffectParams UFoxDamageGameplayAbility::MakeDamageEffectParamsFromClassDefaults(AActor* TargetActor,
+	FVector InRadialDamageOrigin, bool bOverrideKnockbackDirection, FVector KnockbackDirectionOverride,
+	bool bOverrideDeathImpulse, FVector DeathImpulseDirectionOverride, bool bOverridePitch, float PitchOverride) const
 {
 	// Declare and default constructs a FDamageEffectParams struct to aggregate all damage-related configuration
 	// This struct serves as a data container that bundles together all the parameters needed for damage application
@@ -177,28 +179,121 @@ FDamageEffectParams UFoxDamageGameplayAbility::MakeDamageEffectParamsFromClassDe
 		// .Rotation() converts this direction vector into a rotator (pitch, yaw, roll representation)
 		// This rotation will be used to apply impulse/force in the direction the target is from the source
 		FRotator Rotation = (TargetActor->GetActorLocation() - GetAvatarActorFromActorInfo()->GetActorLocation()).Rotation();
-
-		// Override the pitch (up and down) component to 45 degrees to create an upward launch trajectory
-		// Without this, targets would be pushed purely horizontally (pitch = 0)
-		// A 45-degree angle provides a balanced arc that launches targets both away and upward
-		// This creates more dramatic and visually appealing death/knockback effects
-		Rotation.Pitch = 45.f;
+		
+		// Check if the caller has requested to override the calculated pitch angle with a custom value
+		// This allows precise control over the vertical launch angle independently of the target's position
+		// Useful for abilities that need consistent upward/downward trajectory regardless of target height
+		if (bOverridePitch)
+		{
+			// Replace the calculated pitch component with the provided override value
+			// This directly sets the vertical angle of the force/impulse direction to the desired custom pitch
+			// For example, setting PitchOverride to 45.f will launch targets at a 45-degree upward angle
+			Rotation.Pitch = PitchOverride;
+		}
 
 		// Convert the modified rotation back into a normalized direction vector
 		// .Vector() transforms the rotator into a unit vector (magnitude of 1.0) pointing in that direction
 		// This normalized vector represents the direction we want to apply force, before scaling by magnitude
 		const FVector ToTarget = Rotation.Vector();
+		
+		// Check if we should use the default calculated direction (from source to target) for knockback force
+		// If NOT overriding, we use the natural direction based on the target's position relative to the ability source
+		// This creates intuitive physics where targets are knocked away from the source of the damage
+		if (!bOverrideKnockbackDirection)
+		{
+			// Calculate the knockback force vector by scaling the normalized direction with the configured magnitude
+			// ToTarget provides the direction (where to push), KnockbackForceMagnitude provides the strength (how hard to push)
+			// This results in a force that pushes the target away from the ability source at the specified strength
+			Params.KnockbackForce = ToTarget * KnockbackForceMagnitude;
+		}
+		// Check if we should use the default calculated direction (from source to target) for death impulse
+		// If NOT overriding, the ragdoll will be launched in the natural direction away from the damage source
+		// This creates a realistic death animation where corpses fly backward from the impact point
+		if (!bOverrideDeathImpulse)
+		{
+			// Calculate the death impulse vector by scaling the normalized direction with the configured magnitude
+			// ToTarget provides the launch direction, DeathImpulseMagnitude provides the launch strength
+			// This impulse is applied to the physics-simulated mesh upon death, creating the ragdoll launch effect
+			Params.DeathImpulse = ToTarget * DeathImpulseMagnitude;
+		}
+	}
+	
+	// Check if the caller wants to use a custom direction for knockback instead of the default source-to-target direction
+	// This allows abilities to knock targets in arbitrary directions (e.g., always upward, toward a specific point, or along a surface normal)
+	// Useful for abilities like explosions that push targets away from a central point, or jump pads that launch in a fixed direction
+	if (bOverrideKnockbackDirection)
+	{
+		// Normalize the override direction vector to ensure it has a magnitude of exactly 1.0 (unit vector)
+		// This is essential because we multiply by KnockbackForceMagnitude afterward - the direction must be unit length
+		// Without normalization, a vector like (10, 0, 0) would result in 10x stronger knockback than intended
+		// Normalize() modifies the vector in-place, converting it to the same direction but with length 1.0
+		KnockbackDirectionOverride.Normalize();
 
-		// Calculate the final death impulse vector by scaling the direction vector by the death impulse magnitude
-		// This creates the actual force vector that will be applied to the target's physics body on death
-		// The result is a vector pointing 45 degrees upward toward the target with the specified magnitude
-		Params.DeathImpulse = ToTarget * DeathImpulseMagnitude;
+		// Calculate the knockback force by scaling the normalized custom direction with the configured magnitude
+		// This gives us a force vector pointing in the specified override direction at the desired strength
+		// For example, if override is (0, 0, 1) and magnitude is 1000, this creates an upward force of 1000 units
+		Params.KnockbackForce = KnockbackDirectionOverride * KnockbackForceMagnitude;
 
-		// Calculate the final knockback force vector by scaling the direction vector by the knockback magnitude
-		// Similar to death impulse but used for non-lethal knockback effects during combat
-		// This force is applied when the knockback chance succeeds, pushing targets away without killing them
-		// The result is a vector pointing 45 degrees upward toward the target with the specified magnitude
-		Params.KnockbackForce = ToTarget * KnockbackForceMagnitude;
+		// Check if we also need to apply a custom pitch angle to the knockback direction override
+		// This allows fine-tuning the vertical component of the custom direction independently
+		// Even when using a custom horizontal direction, we might want to adjust the launch angle for gameplay feel
+		if (bOverridePitch)
+		{
+			// Convert the normalized override direction vector into a rotator representation
+			// This transformation gives us access to the pitch, yaw, and roll components of the direction
+			// We need rotator form to manipulate the pitch angle component separately from the overall direction
+			FRotator KnockbackRotation = KnockbackDirectionOverride.Rotation();
+
+			// Replace the calculated pitch component with the custom pitch override value
+			// This directly sets the vertical launch angle to the desired value (e.g., 45 degrees for a diagonal launch)
+			// Allows precise control over trajectory arc independently of the base knockback direction
+			KnockbackRotation.Pitch = PitchOverride;
+
+			// Convert the pitch-modified rotation back into a normalized direction vector and scale by magnitude
+			// .Vector() transforms the rotator into a unit direction vector with the new pitch applied
+			// We then multiply by the magnitude to get the final force vector with both custom direction and custom pitch
+			// This overwrites the earlier knockback force calculation with the pitch-adjusted version
+			Params.KnockbackForce = KnockbackRotation.Vector() * KnockbackForceMagnitude;
+		}
+	}
+
+	// Check if the caller wants to use a custom direction for death impulse instead of the default source-to-target direction
+	// This allows ragdolls to be launched in specific directions regardless of where the damage came from
+	// Useful for abilities with cinematic death effects (e.g., explosive barrels always launch upward, trap spikes launch forward)
+	if (bOverrideDeathImpulse)
+	{
+		// Normalize the death impulse override direction vector to ensure it's a unit vector (magnitude of 1.0)
+		// This is critical for consistent physics behavior - the direction must be normalized before scaling by magnitude
+		// Without normalization, the actual impulse strength would vary based on the input vector's length
+		// Normalize() modifies the vector in-place to maintain direction while setting length to exactly 1.0
+		DeathImpulseDirectionOverride.Normalize();
+
+		// Calculate the death impulse by scaling the normalized custom direction with the configured magnitude
+		// This produces an impulse vector pointing in the specified override direction with the desired launch strength
+		// For example, an upward override (0, 0, 1) with magnitude 10000 launches ragdolls straight up with strong force
+		Params.DeathImpulse = DeathImpulseDirectionOverride * DeathImpulseMagnitude;
+
+		// Check if we also need to apply a custom pitch angle to the death impulse direction override
+		// This enables separate control of the vertical launch angle even when using a custom base direction
+		// Allows designers to fine-tune ragdoll trajectory arc for optimal visual impact
+		if (bOverridePitch)
+		{
+			// Convert the normalized override direction vector into rotator form (pitch, yaw, roll components)
+			// This transformation allows us to access and modify the pitch angle independently
+			// Rotator representation is necessary to manipulate individual rotation components
+			FRotator DeathImpulseRotation = DeathImpulseDirectionOverride.Rotation();
+
+			// Override the calculated pitch component with the custom pitch value
+			// This sets the exact vertical launch angle (e.g., 30 degrees for a shallow arc, 60 for steep)
+			// Provides precise control over how high vs. how far the ragdoll travels
+			DeathImpulseRotation.Pitch = PitchOverride;
+
+			// Convert the pitch-modified rotation back to a normalized direction vector and scale by magnitude
+			// .Vector() converts the rotator with the new pitch into a unit direction vector
+			// Multiplying by magnitude gives the final impulse vector with both custom direction and custom pitch applied
+			// This replaces the earlier death impulse calculation with the pitch-adjusted version
+			Params.DeathImpulse = DeathImpulseRotation.Vector() * DeathImpulseMagnitude;
+		}
 	}
 	
 	// Check if this ability is configured to deal radial/area-of-effect damage instead of single-target damage

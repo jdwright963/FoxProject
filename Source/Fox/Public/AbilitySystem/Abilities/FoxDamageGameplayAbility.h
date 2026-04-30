@@ -49,6 +49,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void CauseDamage(AActor* TargetActor);
 	
+	
 	/**
 	 * Constructs a FDamageEffectParams struct populated with values from this ability's
 	 * EditDefaultsOnly properties (DamageEffectClass, DamageType, Damage, debuff settings, etc.).
@@ -61,8 +62,9 @@ public:
 	 * - Damage type tag and magnitude (evaluated at current ability level via Damage.GetValueAtLevel())
 	 * - Debuff parameters (chance, damage, frequency, duration)
 	 * - Radial damage parameters (inner/outer radius, origin point)
-	 * - Knockback parameters (force magnitude, chance)
-	 * - Death impulse magnitude
+	 * - Knockback parameters (force magnitude, chance, optional direction override)
+	 * - Death impulse magnitude and optional direction override
+	 * - Optional pitch override for projectile abilities
 	 * - Optional target actor for additional context
 	 * 
 	 * This method is const-qualified because it only reads member variables without modifying
@@ -78,14 +80,39 @@ public:
 	 *                             allowing dynamic specification of the damage epicenter (e.g., projectile
 	 *                             impact location, spell ground target). When bIsRadialDamage is false, this parameter
 	 *                             is ignored and has no effect on damage application.
+	 * @param bOverrideKnockbackDirection When true, uses KnockbackDirectionOverride instead of calculating knockback
+	 *                                    direction from source-to-target vector. Useful for abilities with specific
+	 *                                    knockback directions (e.g., upward launches, directional pushes). Defaults to false.
+	 * @param KnockbackDirectionOverride Custom normalized direction vector for knockback force when bOverrideKnockbackDirection
+	 *                                   is true. Should be a unit vector. Ignored when bOverrideKnockbackDirection is false.
+	 *                                   Defaults to FVector::ZeroVector.
+	 * @param bOverrideDeathImpulse When true, uses DeathImpulseDirectionOverride instead of calculating death impulse
+	 *                              direction from source-to-target vector. Allows custom ragdoll launch directions on death.
+	 *                              Defaults to false.
+	 * @param DeathImpulseDirectionOverride Custom normalized direction vector for death impulse when bOverrideDeathImpulse
+	 *                                      is true. Should be a unit vector. Ignored when bOverrideDeathImpulse is false.
+	 *                                      Defaults to FVector::ZeroVector.
+	 * @param bOverridePitch When true, uses PitchOverride instead of the default pitch calculation for projectile-based
+	 *                       abilities. Useful for abilities that need specific launch angles regardless of target position.
+	 *                       Defaults to false.
+	 * @param PitchOverride Custom pitch angle (in degrees) for projectile launch when bOverridePitch is true. Typical range
+	 *                      is -90 to 90 degrees. Ignored when bOverridePitch is false. Defaults to 0.f.
 	 * @return FDamageEffectParams struct containing all damage configuration from this ability's defaults,
 	 *         ready to be used with UFoxAbilitySystemLibrary::ApplyDamageEffect() or similar functions.
 	 *         
 	 * This function is exposed to Blueprint as BlueprintPure because it only reads data and does not modify it
 	 */
 	UFUNCTION(BlueprintPure)
-	FDamageEffectParams MakeDamageEffectParamsFromClassDefaults(AActor* TargetActor = nullptr, FVector InRadialDamageOrigin = FVector::ZeroVector) const;
-	
+	FDamageEffectParams MakeDamageEffectParamsFromClassDefaults(
+		AActor* TargetActor = nullptr, 
+		FVector InRadialDamageOrigin = FVector::ZeroVector,
+		bool bOverrideKnockbackDirection = false,
+		FVector KnockbackDirectionOverride = FVector::ZeroVector,
+		bool bOverrideDeathImpulse = false,
+		FVector DeathImpulseDirectionOverride = FVector::ZeroVector,
+		bool bOverridePitch = false,
+		float PitchOverride = 0.f
+		) const;
 	
 	UFUNCTION(BlueprintPure)
 	float GetDamageAtLevel() const;
