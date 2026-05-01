@@ -80,7 +80,7 @@ protected:
 	/**
 	 * Callback function triggered when the sphere component overlaps with another primitive component.
 	 * The UFUNCTION macro exposes this function to Unreal's reflection system, allowing it to be bound
-	 * as a delegate for overlap events (e.g., OnComponentBeginOverlap).
+	 * as a delegate for overlap events (e.g., OnComponentBeginOverlap). This function is virtual and can be overridden by derived classes.
 	 *
 	 * @param OverlappedComponent - The primitive component on this actor that triggered the overlap (typically the Sphere component).
 	 * @param OtherActor - The actor that is overlapping with this projectile's sphere component.
@@ -91,7 +91,7 @@ protected:
 	 *                      This parameter is only valid when bFromSweep is true.
 	 */
 	UFUNCTION()
-	void OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	virtual void OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 	
 	// Sphere component to detect overlaps
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)

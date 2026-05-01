@@ -164,3 +164,8 @@ FString UFoxFireBlast::GetNextLevelDescription(int32 Level)
 			NumFireBalls,
 			ScaledDamage);
 }
+
+TArray<AFoxFireBall*> UFoxFireBlast::SpawnFireBalls()
+{
+	return TArray<AFoxFireBall*>();
+}

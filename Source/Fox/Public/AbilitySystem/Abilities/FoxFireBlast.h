@@ -6,6 +6,7 @@
 #include "AbilitySystem/Abilities/FoxDamageGameplayAbility.h"
 #include "FoxFireBlast.generated.h"
 
+class AFoxFireBall;
 /**
  * 
  */
@@ -23,9 +24,19 @@ public:
 	// tags for UI styling to help players understand progression
 	virtual FString GetNextLevelDescription(int32 Level) override;
 	
+	
+	UFUNCTION(BlueprintCallable)
+	TArray<AFoxFireBall*> SpawnFireBalls();
+	
 protected:
 	
 	// The number of fire balls spawned when this Fire Blast ability is activated
 	UPROPERTY(EditDefaultsOnly, Category = "FireBlast")
 	int32 NumFireBalls = 12;
+	
+private:
+
+	// The class of fire ball projectile to spawn when this ability is activated. The value of this variable is set in the blueprint.
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<AFoxFireBall> FireBallClass;
 };
