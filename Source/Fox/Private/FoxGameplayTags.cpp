@@ -351,6 +351,12 @@ void FFoxGameplayTags::InitializeNativeGameplayTags()
 	FString("FireBolt Ability Tag")
 	);
 	
+	// Constructs the Gameplay tag to identify the FireBlast ability
+	GameplayTags.Abilities_Fire_FireBlast = UGameplayTagsManager::Get().AddNativeGameplayTag(
+		FName("Abilities.Fire.FireBlast"),
+		FString("FireBlast Ability Tag")
+		);
+	
 	// Constructs the Gameplay tag to identify the Electrocute ability
 	GameplayTags.Abilities_Lightning_Electrocute = UGameplayTagsManager::Get().AddNativeGameplayTag(
 		FName("Abilities.Lightning.Electrocute"),

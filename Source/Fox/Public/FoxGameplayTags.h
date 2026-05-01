@@ -108,6 +108,9 @@ public:
 	// Gameplay tag to identify the FireBolt ability
 	FGameplayTag Abilities_Fire_FireBolt;
 	
+	// Gameplay tag to identify the FireBlast ability
+	FGameplayTag Abilities_Fire_FireBlast;	
+	
 	// Gameplay tag to identify the Electrocute ability
 	FGameplayTag Abilities_Lightning_Electrocute;
 	
