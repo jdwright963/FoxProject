@@ -69,9 +69,12 @@ protected:
 	 * - Stops the looping flight sound component
 	 * - Sets the bHit flag to true to prevent duplicate effect execution
 	 * 
+	 * This function is callable from blueprints and can be overridden by derived classes.
+	 * 
 	 * Note: This function does not handle damage application or projectile destruction,
 	 * as those are managed separately in OnSphereOverlap() and Destroyed().
 	 */
+	UFUNCTION(BlueprintCallable)
 	void OnHit();
 
 	// Overriden function called when the actor is destroyed

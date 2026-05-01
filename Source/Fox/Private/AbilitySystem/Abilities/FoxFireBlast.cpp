@@ -247,6 +247,15 @@ TArray<AFoxFireBall*> UFoxFireBlast::SpawnFireBalls()
 		 * level and configuration.
 		 */
 		FireBall->DamageEffectParams = MakeDamageEffectParamsFromClassDefaults();
+		
+		/*
+		 * Set the fireball's ReturnToActor variable to reference the avatar actor (the character or pawn that owns
+		 * this ability) so the fireball knows which actor to return to after traveling outward to its maximum range,
+		 * enabling the boomerang-like behavior where each fireball launches away from the character in its assigned
+		 * direction, then curves back toward the caster and explodes upon reaching them, creating the signature
+		 * Fire Blast pattern of outgoing and returning projectiles.
+		 */
+		FireBall->ReturnToActor = GetAvatarActorFromActorInfo();
 
 		/*
 		 * Add the newly spawned fireball actor to the FireBalls array to maintain an array of all fireballs
