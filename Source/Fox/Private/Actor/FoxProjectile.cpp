@@ -156,23 +156,9 @@ void AFoxProjectile::Destroyed()
 
 void AFoxProjectile::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	// Early exit if the source Ability System Component is invalid. This prevents null pointer crashes
-	// when trying to access the source ASC later for damage application.
-	if (DamageEffectParams.SourceAbilitySystemComponent == nullptr) return;
-	
-	// Retrieve the avatar actor (typically the character) that owns the source Ability System Component.
-	// This is the actor that originally cast the ability and spawned this projectile, extracted from
-	// the DamageEffectParams struct that was configured when the projectile was created.
-	AActor* SourceAvatarActor = DamageEffectParams.SourceAbilitySystemComponent->GetAvatarActor();
-
-	// Prevent self-damage by checking if the source actor (who cast the ability) is the same as the actor
-	// we just overlapped with. This ensures actors cannot damage themselves with their own projectiles.
-	if (SourceAvatarActor == OtherActor) return;
-
-	// Prevent friendly fire by using a custom library function we created to check if the source actor and the
-	// overlapped actor are friends/allies. If they are friends (IsNotFriend returns false), exit early
-	// without applying damage, allowing team-based gameplay where allies don't hurt each other.
-	if (!UFoxAbilitySystemLibrary::IsNotFriend(SourceAvatarActor, OtherActor)) return;
+	// Validate the overlap by checking if it's not self-damage, not friendly fire, and has a valid source ASC.
+	// Early return if any validation fails to prevent processing invalid collision events.
+	if (!IsValidOverlap(OtherActor)) return;
 	
 	// Only trigger impact effects if this is the first valid hit. The bHit flag prevents duplicate effect execution
 	// if OnSphereOverlap is called multiple times (e.g., overlapping multiple colliders simultaneously or network edge cases).
@@ -254,5 +240,31 @@ void AFoxProjectile::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, A
 		// replicates to the client before the client's OnSphereOverlap callback executes.
 		bHit = true;
 	}
+}
+
+bool AFoxProjectile::IsValidOverlap(AActor* OtherActor)
+{
+	// Return false if the source Ability System Component is invalid. This prevents null pointer crashes
+	// when trying to access the source ASC later for damage application.
+	if (DamageEffectParams.SourceAbilitySystemComponent == nullptr) return false;
+	
+	// Retrieve the avatar actor (typically the character) that owns the source Ability System Component.
+	// This is the actor that originally cast the ability and spawned this projectile, extracted from
+	// the DamageEffectParams struct that was configured when the projectile was created.
+	AActor* SourceAvatarActor = DamageEffectParams.SourceAbilitySystemComponent->GetAvatarActor();
+	
+	// Prevent self-damage by checking if the source actor (who cast the ability) is the same as the actor
+	// we just overlapped with. Returns false to invalidate the overlap if they match, ensuring actors
+	// cannot damage themselves with their own projectiles.
+	if (SourceAvatarActor == OtherActor) return false;
+
+	// Prevent friendly fire by using a custom library function we created to check if the source actor and the
+	// overlapped actor are friends/allies. Returns false to invalidate the overlap if they are friends
+	// (IsNotFriend returns false), allowing team-based gameplay where allies don't hurt each other.
+	if (!UFoxAbilitySystemLibrary::IsNotFriend(SourceAvatarActor, OtherActor)) return false;
+
+	// All validation checks have passed (not self-damage, not friendly fire, valid ASC exists).
+	// Return true to indicate this is a valid overlap that should proceed with damage application.
+	return true;
 }
 

@@ -100,14 +100,23 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<USphereComponent> Sphere;
 	
+	/**
+	 * Validates whether an overlap event with another actor should be processed by this projectile.
+	 * This helper function is used to filter out self-damage, friendly fire, and overlaps with an invalid source ASC
+	 *
+	 * @param OtherActor - The actor that is overlapping with this projectile
+	 * @return True if the overlap is valid and should be processed, false otherwise
+	 */
+	bool IsValidOverlap(AActor* OtherActor);
+	
+	// Variable to track if the projectile has hit something
+	bool bHit = false;
+	
 private:
 	
 	// Variable that specifies the lifespan of the projectile, after which the projectile will be destroyed.
 	UPROPERTY(EditDefaultsOnly)
 	float LifeSpan = 15.f;
-	
-	// Variable to track if the projectile has hit something
-	bool bHit = false;
 	
 	// Niagara system effect for impact of a projectile (this class)
 	UPROPERTY(EditAnywhere)
