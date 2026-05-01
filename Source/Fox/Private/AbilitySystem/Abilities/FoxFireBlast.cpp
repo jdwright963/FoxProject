@@ -3,6 +3,9 @@
 
 #include "AbilitySystem/Abilities/FoxFireBlast.h"
 
+#include "AbilitySystem/FoxAbilitySystemLibrary.h"
+#include "Actor/FoxFireBall.h"
+
 FString UFoxFireBlast::GetDescription(int32 Level)
 {
 	/*
@@ -167,5 +170,104 @@ FString UFoxFireBlast::GetNextLevelDescription(int32 Level)
 
 TArray<AFoxFireBall*> UFoxFireBlast::SpawnFireBalls()
 {
-	return TArray<AFoxFireBall*>();
+	/*
+	 * Create an empty TArray to store pointers to all spawned AFoxFireBall actors, which will be returned at the
+	 * end of this function to allow the caller to track and manipulate the created fireballs (e.g., for animation,
+	 * movement patterns, or cleanup).
+	 */
+	TArray<AFoxFireBall*> FireBalls;
+
+	/*
+	 * Get the forward direction vector of the avatar actor (the character or pawn that owns this ability) to use
+	 * as the reference direction for calculating the spawn rotations of the fireballs in a radial pattern around
+	 * the character.
+	 */
+	const FVector Forward = GetAvatarActorFromActorInfo()->GetActorForwardVector();
+
+	/*
+	 * Get the world space location of the avatar actor to use as the spawn point for all fireballs, ensuring they
+	 * originate from the character's position rather than the world origin or some other arbitrary location.
+	 */
+	const FVector Location = GetAvatarActorFromActorInfo()->GetActorLocation();
+
+	/*
+	 * Calculate an array of FRotators evenly distributed in a 360-degree circle around the avatar's forward
+	 * direction using the UpVector as the rotation axis, with the number of rotators matching NumFireBalls so each
+	 * fireball will be launched in a unique direction forming a radial blast pattern.
+	 */
+	TArray<FRotator> Rotators = UFoxAbilitySystemLibrary::EvenlySpacedRotators(Forward, FVector::UpVector, 360.f, NumFireBalls);
+
+	/*
+	 * Iterate through each rotator in the array
+	 */
+	for (const FRotator& Rotator : Rotators)
+	{
+		/*
+		 * Create an FTransform object that will define both the spawn position and orientation for the fireball
+		 * actor in world space, encapsulating location, rotation, and scale into a single struct that can be passed
+		 * to the spawning function.
+		 */
+		FTransform SpawnTransform;
+
+		/*
+		 * Set the location component of the spawn transform to the avatar's current world position so the fireball
+		 * originates from the character rather than at the world origin or an arbitrary location.
+		 */
+		SpawnTransform.SetLocation(Location);
+
+		/*
+		 * Set the rotation component of the spawn transform by converting the current rotator (which defines the
+		 * fireball's launch direction in the radial pattern) to a quaternion representation, which is the internal
+		 * format used by FTransform for storing rotations.
+		 */
+		SpawnTransform.SetRotation(Rotator.Quaternion());
+		
+		/*
+		 * Spawn a fireball actor using deferred spawning (SpawnActorDeferred) which creates the actor instance but
+		 * delays calling BeginPlay and initializing components until FinishSpawning is called, allowing us to
+		 * configure the fireball's properties (like DamageEffectParams) before it becomes fully active in the world.
+		 * The parameters specify: FireBallClass as the actor type to spawn, SpawnTransform for its world position
+		 * and rotation, the ability owner as the spawned actor's owner for replication and authority purposes, the
+		 * player controller's pawn as the instigator for damage attribution and team identification, and
+		 * AlwaysSpawn to ensure the actor spawns even if there are collisions at the spawn location.
+		 */
+		AFoxFireBall* FireBall = GetWorld()->SpawnActorDeferred<AFoxFireBall>( 
+			FireBallClass,
+			SpawnTransform,
+			GetOwningActorFromActorInfo(),
+			CurrentActorInfo->PlayerController->GetPawn(),
+			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		
+		/*
+		 * Populate the fireball's DamageEffectParams struct by calling MakeDamageEffectParamsFromClassDefaults()
+		 * (inherited from UFoxDamageGameplayAbility parent class) which constructs a damage parameter struct
+		 * containing the ability's configured (set in the blueprint) damage values, debuff chances, knockback settings,
+		 * and other effect properties that will be applied when the fireball hits a target, ensuring each spawned fireball deals
+		 * the correct amount of damage and applies the appropriate gameplay effects based on the ability's current
+		 * level and configuration.
+		 */
+		FireBall->DamageEffectParams = MakeDamageEffectParamsFromClassDefaults();
+
+		/*
+		 * Add the newly spawned fireball actor to the FireBalls array to maintain an array of all fireballs
+		 * created during this ability activation, allowing the caller to track, manipulate, or reference them later
+		 * (e.g., for synchronized animations, cleanup on ability cancellation, or gameplay logic that depends on
+		 * knowing how many projectiles are active).
+		 */
+		FireBalls.Add(FireBall);
+
+		/*
+		 * Complete the deferred spawn process by calling FinishSpawning() with the previously configured
+		 * SpawnTransform, which triggers the fireball's BeginPlay(), initializes all components, enables collision
+		 * detection, starts any configured movement behavior, and makes the actor fully active in the world so it
+		 * can begin traveling toward its target and interacting with other actors.
+		 */
+		FireBall->FinishSpawning(SpawnTransform);
+	}
+	/*
+	 * Return the array of all spawned AFoxFireBall actors to the caller so they can track, reference, or manipulate
+	 * the fireballs after creation (e.g., for applying movement patterns, triggering animations, handling ability
+	 * cancellation cleanup, or implementing gameplay logic that needs to know which projectiles are active).
+	 */
+	return FireBalls;
 }

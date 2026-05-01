@@ -24,7 +24,8 @@ public:
 	// tags for UI styling to help players understand progression
 	virtual FString GetNextLevelDescription(int32 Level) override;
 	
-	
+	// Spawns and returns an array of fire ball projectiles in a circular pattern around the ability owner, with the
+	// number of projectiles determined by NumFireBalls variable
 	UFUNCTION(BlueprintCallable)
 	TArray<AFoxFireBall*> SpawnFireBalls();
 	
