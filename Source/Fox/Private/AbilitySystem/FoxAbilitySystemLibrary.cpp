@@ -258,6 +258,166 @@ int32 UFoxAbilitySystemLibrary::GetXPRewardForClassAndLevel(const UObject* World
 	return static_cast<int32>(XPReward);
 }
 
+void UFoxAbilitySystemLibrary::SetIsRadialDamageEffectParam(FDamageEffectParams& DamageEffectParams, bool bIsRadial,
+	float InnerRadius, float OuterRadius, FVector Origin)
+{
+	/*
+	 * Set the radial damage mode boolean in the DamageEffectParams struct using the bIsRadial parameter passed into
+	 * this function. When true, damage calculations will use radial falloff based on distance from the origin point,
+	 * with full damage within the inner radius and linearly decreasing damage between the inner and outer radius.
+	 * When false, the damage effect will use standard single-target mode without any radial calculations.
+	 */
+	DamageEffectParams.bIsRadialDamage = bIsRadial;
+
+	/*
+	 * Set the inner radius value in the DamageEffectParams struct using the InnerRadius parameter passed into this
+	 * function. This value (in Unreal units) defines the radius of the zone where targets receive full damage in a
+	 * radial damage effect. Targets within this distance from the origin take 100% of the base damage, while targets
+	 * between the inner and outer radius receive damage scaled based on their distance.
+	 */
+	DamageEffectParams.RadialDamageInnerRadius = InnerRadius;
+
+	/*
+	 * Set the outer radius value in the DamageEffectParams struct using the OuterRadius parameter passed into this
+	 * function. This value (in Unreal units) defines the maximum range of the radial damage effect where damage drops
+	 * to zero. Targets between the inner radius and this outer radius receive linearly interpolated damage based on
+	 * their distance from the origin, while targets beyond this radius take no damage at all.
+	 */
+	DamageEffectParams.RadialDamageOuterRadius = OuterRadius;
+
+	/*
+	 * Set the origin point in the DamageEffectParams struct using the Origin parameter passed into this function.
+	 * This FVector represents the world space location (center point) from which radial damage emanates and distance
+	 * calculations are performed. All targets' distances are measured from this point to determine their damage
+	 * values based on the inner and outer radius falloff system. For example, in an explosion ability, this would
+	 * be the detonation point.
+	 */
+	DamageEffectParams.RadialDamageOrigin = Origin;
+}
+
+void UFoxAbilitySystemLibrary::SetKnockbackDirection(FDamageEffectParams& DamageEffectParams,
+	FVector KnockbackDirection, float Magnitude)
+{
+	/*
+	 * Normalize the KnockbackDirection vector to ensure it has unit length (magnitude of 1.0), converting it into
+	 * a directional vector. Normalize() is an FVector member function that divides each component (X, Y, Z)
+	 * by the vector's current length, preserving direction while standardizing magnitude. This normalization is
+	 * critical because knockback force should be determined solely by the Magnitude parameter (or the default
+	 * KnockbackForceMagnitude), not by the input vector's length. Without normalization, a KnockbackDirection of
+	 * (10, 0, 0) would result in 10x stronger knockback than (1, 0, 0) for the same magnitude value, creating
+	 * inconsistent gameplay behavior. After normalization, both vectors become (1, 0, 0), ensuring magnitude
+	 * scaling is predictable and controllable.
+	 */
+	KnockbackDirection.Normalize();
+
+	/*
+	 * Check if the Magnitude parameter is zero (0.f) to determine whether the caller provided a custom magnitude
+	 * value or wants to use the default magnitude stored in DamageEffectParams. When Magnitude is 0.f, it indicates
+	 * the caller passed the default parameter value and intends to use the pre-configured KnockbackForceMagnitude
+	 * from the DamageEffectParams struct. When Magnitude is non-zero, it indicates the caller explicitly specified
+	 * a custom knockback force magnitude that should override the default.
+	 */
+	if (Magnitude == 0.f)
+	{
+		/*
+		 * Calculate the final knockback force vector by multiplying the normalized knockback direction by the
+		 * default magnitude value stored in DamageEffectParams.KnockbackForceMagnitude. This path is taken when
+		 * the Magnitude parameter is 0.f (default value), indicating the caller wants to use the pre-configured
+		 * knockback magnitude from the damage effect parameters rather than specifying a custom value. For example,
+		 * if KnockbackForceMagnitude is 500.0 and the normalized direction is (1, 0, 0), the resulting
+		 * KnockbackForce will be (500, 0, 0), creating a knockback impulse of 500 units in the positive X direction.
+		 * This allows abilities and damage effects to have consistent knockback behavior configured in their data
+		 * assets without requiring magnitude to be specified every time SetKnockbackDirection is called.
+		 */
+		DamageEffectParams.KnockbackForce = KnockbackDirection * DamageEffectParams.KnockbackForceMagnitude;
+	}
+	else
+	{
+		/*
+		 * Calculate the final knockback force vector by multiplying the normalized knockback direction by the
+		 * custom Magnitude parameter passed into this function. This path is taken when Magnitude is non-zero,
+		 * indicating the caller explicitly wants to override the default KnockbackForceMagnitude with a specific
+		 * value for this particular knockback application. For example, if Magnitude is 1000.0 and the normalized
+		 * direction is (0.707, 0.707, 0), the resulting KnockbackForce will be approximately (707, 707, 0),
+		 * creating a knockback impulse of 1000 units at a 45-degree angle in the XY plane. This allows for
+		 * dynamic knockback strength based on gameplay conditions like critical hits dealing stronger knockback,
+		 * or environmental interactions applying variable force, while still maintaining the same directional
+		 * component set by the KnockbackDirection parameter.
+		 */
+		DamageEffectParams.KnockbackForce = KnockbackDirection * Magnitude;
+	}
+}
+
+void UFoxAbilitySystemLibrary::SetDeathImpulseDirection(FDamageEffectParams& DamageEffectParams,
+	FVector ImpulseDirection, float Magnitude)
+{
+	/*
+	 * Normalize the ImpulseDirection vector to ensure it has unit length (magnitude of 1.0), converting it into
+	 * a pure directional vector. Normalize() is an FVector member function that divides each component (X, Y, Z)
+	 * by the vector's current length, preserving direction while standardizing magnitude. This normalization is
+	 * critical because death impulse force should be determined solely by the Magnitude parameter (or the default
+	 * DeathImpulseMagnitude), not by the input vector's length. Without normalization, an ImpulseDirection of
+	 * (10, 0, 0) would result in 10x stronger impulse than (1, 0, 0) for the same magnitude value, creating
+	 * inconsistent gameplay behavior. After normalization, both vectors become (1, 0, 0), ensuring magnitude
+	 * scaling is predictable and controllable.
+	 */
+	ImpulseDirection.Normalize();
+
+	/*
+	 * Check if the Magnitude parameter is zero (0.f) to determine whether the caller provided a custom magnitude
+	 * value or wants to use the default magnitude stored in DamageEffectParams. When Magnitude is 0.f, it indicates
+	 * the caller passed the default parameter value and intends to use the pre-configured DeathImpulseMagnitude
+	 * from the DamageEffectParams struct. When Magnitude is non-zero, it indicates the caller explicitly specified
+	 * a custom death impulse magnitude that should override the default. This conditional branching allows the
+	 * function to support both use cases: using default magnitude values configured in damage effect setups, or
+	 * providing one-off custom magnitudes for special cases like explosive deaths or environmental kills.
+	 */
+	if (Magnitude == 0.f)
+	{
+		/*
+		 * Calculate the final death impulse vector by multiplying the normalized impulse direction by the
+		 * default magnitude value stored in DamageEffectParams.DeathImpulseMagnitude. This path is taken when
+		 * the Magnitude parameter is 0.f (default value), indicating the caller wants to use the pre-configured
+		 * death impulse magnitude from the damage effect parameters rather than specifying a custom value. For
+		 * example, if DeathImpulseMagnitude is 1000.0 and the normalized direction is (1, 0, 0), the resulting
+		 * DeathImpulse will be (1000, 0, 0), creating a ragdoll impulse of 1000 units in the positive X direction.
+		 * This allows abilities and damage effects to have consistent death physics behavior configured in their
+		 * data assets without requiring magnitude to be specified every time SetDeathImpulseDirection is called.
+		 */
+		DamageEffectParams.DeathImpulse = ImpulseDirection * DamageEffectParams.DeathImpulseMagnitude;
+	}
+	else
+	{
+		/*
+		 * Calculate the final death impulse vector by multiplying the normalized impulse direction by the
+		 * custom Magnitude parameter passed into this function. This path is taken when Magnitude is non-zero,
+		 * indicating the caller explicitly wants to override the default DeathImpulseMagnitude with a specific
+		 * value for this particular death impulse application. For example, if Magnitude is 2000.0 and the
+		 * normalized direction is (0.707, 0.707, 0), the resulting DeathImpulse will be approximately (1414, 1414, 0),
+		 * creating a ragdoll impulse of 2000 units at a 45-degree angle in the XY plane. This allows for dynamic
+		 * death impulse strength based on gameplay conditions like explosive kills dealing stronger impulse, or
+		 * environmental deaths applying variable force, while still maintaining the same directional component
+		 * set by the ImpulseDirection parameter.
+		 */
+		DamageEffectParams.DeathImpulse = ImpulseDirection * Magnitude;
+	}
+}
+
+void UFoxAbilitySystemLibrary::SetTargetEffectParamsASC(FDamageEffectParams& DamageEffectParams,
+	UAbilitySystemComponent* InASC)
+{
+	/*
+	 * Assign the target's Ability System Component (passed as InASC parameter) to the TargetAbilitySystemComponent
+	 * member of the DamageEffectParams struct. This establishes which actor will receive the damage effect when
+	 * ApplyDamageEffect() is called with these parameters. The target ASC is essential for the damage application
+	 * pipeline because it identifies the recipient of attribute modifications (health reduction, debuff application,
+	 * etc.) and provides access to the target's current attribute values for damage calculations. This function
+	 * serves as a setter utility that allows abilities, projectiles, or other gameplay systems to specify their
+	 * damage target dynamically at runtime before applying the configured damage effect.
+	 */
+	DamageEffectParams.TargetAbilitySystemComponent = InASC;
+}
+
 UCharacterClassInfo* UFoxAbilitySystemLibrary::GetCharacterClassInfo(const UObject* WorldContextObject)
 {
 	// Get the game mode and casts it to AFoxGameModeBase

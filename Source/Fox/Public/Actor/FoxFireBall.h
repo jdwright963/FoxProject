@@ -26,7 +26,17 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<AActor> ReturnToActor;
 	
+	// Damage parameters applied when the fire ball explodes on impact or at its destination.
+	// This allows for separate damage configuration from the initial projectile hit, enabling
+	// different explosion radius, damage values, and effects to be applied in an area.
+	UPROPERTY(BlueprintReadWrite)
+	FDamageEffectParams ExplosionDamageParams;
+	
 protected:
 	virtual void BeginPlay() override;
+	
+	// Handles collision events when the fire ball's sphere component overlaps with another actor.
+	// Validates the overlap, then applies damage effects with death impulse to valid targets on the server.
+	// This override customizes the base projectile behavior to use the fire ball's specific damage parameters.
 	virtual void OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) override;
 };

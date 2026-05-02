@@ -256,6 +256,23 @@ TArray<AFoxFireBall*> UFoxFireBlast::SpawnFireBalls()
 		 * Fire Blast pattern of outgoing and returning projectiles.
 		 */
 		FireBall->ReturnToActor = GetAvatarActorFromActorInfo();
+		
+		/*
+		 * Configure the fireball's ExplosionDamageParams with the ability's damage effect settings by calling
+		 * MakeDamageEffectParamsFromClassDefaults() to create a separate damage parameter struct specifically for
+		 * the explosion that occurs when the fireball returns to the caster, allowing the explosion to use the same
+		 * damage values, debuff chances, and effect properties as the initial projectile hit but potentially with
+		 * different application logic or area-of-effect behavior defined in the fireball's Blueprint implementation.
+		 */
+		FireBall->ExplosionDamageParams = MakeDamageEffectParamsFromClassDefaults();
+
+		/*
+		 * Set the fireball actor's owner to the avatar actor (the character or pawn that owns this ability) to
+		 * establish proper ownership hierarchy for network replication and authority purposes, ensuring the server
+		 * knows which player/character spawned this projectile for damage attribution, team identification, and
+		 * proper cleanup when the owner is destroyed or disconnected from the game.
+		 */
+		FireBall->SetOwner(GetAvatarActorFromActorInfo());
 
 		/*
 		 * Add the newly spawned fireball actor to the FireBalls array to maintain an array of all fireballs

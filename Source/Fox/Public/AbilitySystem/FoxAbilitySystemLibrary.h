@@ -474,4 +474,68 @@ public:
 	// BlueprintCallable: This specifier indicates that the function can be called from Blueprints
 	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|CharacterClassDefaults")
 	static int32 GetXPRewardForClassAndLevel(const UObject* WorldContextObject, ECharacterClass CharacterClass, int32 CharacterLevel);
+	
+	/*
+	 * Damage Effect Params
+	 */
+
+	// Function to configure radial (area of effect) damage parameters in a FDamageEffectParams struct
+	// This is a utility function that sets all necessary values for radial damage calculation in one call,
+	// including whether radial damage is enabled and the damage radius configuration
+	// 
+	// DamageEffectParams: Reference to the damage effect parameters struct that will be modified with radial damage settings
+	// bIsRadial: Boolean flag indicating whether this damage effect should use radial/area-of-effect damage
+	// InnerRadius: The inner radius in world units (cm) where targets receive full damage
+	// OuterRadius: The outer radius in world units (cm) representing the maximum damage range; targets between inner and outer radius receive reduced damage
+	// Origin: The world space position from which radial damage emanates (the epicenter of the explosion/effect)
+	// 
+	// This function is exposed to Blueprint as BlueprintCallable to allow designers to easily configure radial damage
+	// for abilities like explosions, area spells, or fire blasts without writing C++ code
+	// `UPARAM(ref)` tells the engine that this parameter is supposed to be an input pin/parameter in Blueprint
+	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|DamageEffect")
+	static void SetIsRadialDamageEffectParam(UPARAM(ref) FDamageEffectParams& DamageEffectParams, bool bIsRadial, float InnerRadius, float OuterRadius, FVector Origin);
+
+	// Function to set the knockback force direction and magnitude in a FDamageEffectParams struct
+	// This configures the physical force that will be applied to push back a character when hit by an attack or ability
+	// The function calculates the final knockback force vector by normalizing the direction and scaling it by magnitude
+	// 
+	// DamageEffectParams: Reference to the damage effect parameters struct that will be modified with knockback settings
+	// KnockbackDirection: The direction vector in which the target should be knocked back (will be normalized internally)
+	// Magnitude: The strength/magnitude of the knockback force to apply (default is 0.f, meaning no knockback if not specified)
+	// 
+	// This function is exposed to Blueprint as BlueprintCallable to allow designers to easily configure knockback effects
+	// for abilities like powerful spells, melee attacks, or explosions without writing C++ code
+	// `UPARAM(ref)` tells the engine that this parameter is supposed to be an input pin/parameter in Blueprint
+	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|DamageEffect")
+	static void SetKnockbackDirection(UPARAM(ref) FDamageEffectParams& DamageEffectParams, FVector KnockbackDirection, float Magnitude = 0.f);
+
+	// Function to set the death impulse direction and magnitude in a FDamageEffectParams struct
+	// This configures the physical force that will be applied to a character's ragdoll upon death to create realistic death physics
+	// The function calculates the final death impulse vector by normalizing the direction and scaling it by magnitude
+	// For example, this can make characters fly back dramatically from explosions or powerful killing blows
+	// 
+	// DamageEffectParams: Reference to the damage effect parameters struct that will be modified with death impulse settings
+	// ImpulseDirection: The direction vector in which the character's ragdoll should be propelled upon death (will be normalized internally)
+	// Magnitude: The strength/magnitude of the death impulse force to apply (default is 0.f, meaning no impulse if not specified)
+	// 
+	// This function is exposed to Blueprint as BlueprintCallable to allow designers to easily configure death physics
+	// for abilities and attacks without writing C++ code, enabling dramatic visual feedback for killing blows
+	// `UPARAM(ref)` tells the engine that this parameter is supposed to be an input pin/parameter in Blueprint
+	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|DamageEffect")
+	static void SetDeathImpulseDirection(UPARAM(ref) FDamageEffectParams& DamageEffectParams, FVector ImpulseDirection, float Magnitude = 0.f);
+
+	// Function to set the target Ability System Component in a FDamageEffectParams struct
+	// This assigns which actor's ASC should receive the damage effect when ApplyDamageEffect is called
+	// This is a convenience function that allows for setting the target ASC separately from other damage parameters,
+	// which is useful when the target is determined dynamically (e.g., in projectile overlaps or area damage calculations)
+	// 
+	// DamageEffectParams: Reference to the damage effect parameters struct that will be modified with the target ASC
+	// InASC: Pointer to the Ability System Component of the actor that should receive the damage effect
+	// 
+	// This function is exposed to Blueprint as BlueprintCallable to allow designers to dynamically set damage targets
+	// in Blueprint logic without writing C++ code, which is particularly useful for abilities with multiple targets
+	// or delayed damage application (like projectiles or area effects)
+	// `UPARAM(ref)` tells the engine that this parameter is supposed to be an input pin/parameter in Blueprint
+	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|DamageEffect")
+	static void SetTargetEffectParamsASC(UPARAM(ref) FDamageEffectParams& DamageEffectParams, UAbilitySystemComponent* InASC);
 };
