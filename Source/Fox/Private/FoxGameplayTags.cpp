@@ -519,6 +519,15 @@ void FFoxGameplayTags::InitializeNativeGameplayTags()
 		FName("Player.Block.InputReleased"),
 		FString("Block Input Released callback for input")
 		);
+	
+	/*
+	 * GameplayCues
+	 */
+
+	GameplayTags.GameplayCue_FireBlast = UGameplayTagsManager::Get().AddNativeGameplayTag(
+		FName("GameplayCue.FireBlast"),
+		FString("FireBlast GameplayCue Tag")
+		);
 }
 
 

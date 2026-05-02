@@ -39,4 +39,9 @@ protected:
 	// Validates the overlap, then applies damage effects with death impulse to valid targets on the server.
 	// This override customizes the base projectile behavior to use the fire ball's specific damage parameters.
 	virtual void OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) override;
+	
+	// Handles the fire ball's hit event by executing the FireBlast gameplay cue for explosion effects
+	// (particles, sound, camera shake), stopping and destroying the looping flight sound component,
+	// and marking the projectile as hit to prevent further collision processing.
+	virtual void OnHit() override;
 };

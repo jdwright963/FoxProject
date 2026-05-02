@@ -69,13 +69,14 @@ protected:
 	 * - Stops the looping flight sound component
 	 * - Sets the bHit flag to true to prevent duplicate effect execution
 	 * 
-	 * This function is callable from blueprints and can be overridden by derived classes.
+	 * This function is callable from blueprints and can be overridden by derived classes. It is also
+	 * virtual so that it can be overridden by derived classes.
 	 * 
 	 * Note: This function does not handle damage application or projectile destruction,
 	 * as those are managed separately in OnSphereOverlap() and Destroyed().
 	 */
 	UFUNCTION(BlueprintCallable)
-	void OnHit();
+	virtual void OnHit();
 
 	// Overriden function called when the actor is destroyed
 	virtual void Destroyed() override;
@@ -111,6 +112,10 @@ protected:
 	
 	// Variable to track if the projectile has hit something
 	bool bHit = false;
+		
+	// Audio component that will store the component created from LoopingSound
+	UPROPERTY()
+	TObjectPtr<UAudioComponent> LoopingSoundComponent;
 	
 private:
 	
@@ -129,8 +134,4 @@ private:
 	// Sound effect for projectile flying through the air. It plays until the projectile hits something
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<USoundBase> LoopingSound;
-	
-	// Audio component that will store the component created from LoopingSound
-	UPROPERTY()
-	TObjectPtr<UAudioComponent> LoopingSoundComponent;
 };

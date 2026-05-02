@@ -4,7 +4,10 @@
 #include "Actor/FoxFireBall.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
+#include "FoxGameplayTags.h"
+#include "GameplayCueManager.h"
 #include "AbilitySystem/FoxAbilitySystemLibrary.h"
+#include "Components/AudioComponent.h"
 
 void AFoxFireBall::BeginPlay()
 {
@@ -39,4 +42,39 @@ void AFoxFireBall::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AAc
 			UFoxAbilitySystemLibrary::ApplyDamageEffect(DamageEffectParams);
 		}
 	}
+}
+
+void AFoxFireBall::OnHit()
+{
+	// Verify that the fire ball has a valid owner (typically the ability caster) before attempting to execute
+	// the gameplay cue, ensuring we have a valid context for the visual and audio effects
+	if (GetOwner())
+	{
+		// Create a gameplay cue parameters structure to pass contextual information (like location) to the cue system
+		FGameplayCueParameters CueParams;
+
+		// Set the location parameter to the fire ball's current position so the explosion effect appears at the impact point
+		CueParams.Location = GetActorLocation();
+
+		// Execute the FireBlast gameplay cue non-replicated on the owner to trigger client-side explosion effects
+		// (particles, sounds, camera shake) without network replication since this is called on each client locally
+		UGameplayCueManager::ExecuteGameplayCue_NonReplicated(GetOwner(), FFoxGameplayTags::Get().GameplayCue_FireBlast, CueParams);
+	}
+	
+	// Check if the looping sound component exists before attempting to stop and destroy it
+	// to prevent null pointer access and ensure safe cleanup of the audio component
+	if (LoopingSoundComponent)
+	{
+		// Stop the looping projectile sound immediately to prevent it from continuing to play
+		// after the projectile has hit its target and is about to be destroyed
+		LoopingSoundComponent->Stop();
+
+		// Destroy the audio component to free up memory and remove it from the actor's component list,
+		// ensuring proper cleanup of resources associated with the projectile's flight sound
+		LoopingSoundComponent->DestroyComponent();
+	}
+	
+	// Mark the projectile as having hit a target or surface, preventing further collision processing
+	// and signaling that the projectile's lifecycle should transition to its destruction phase
+	bHit = true;
 }
