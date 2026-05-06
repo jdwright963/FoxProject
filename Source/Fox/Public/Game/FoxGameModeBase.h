@@ -30,8 +30,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Ability Info")
 	TObjectPtr<UAbilityInfo> AbilityInfo;
 	
+	// Saves the load slot data (player name, map name, player level, etc.) to disk at the specified slot index
 	void SaveSlotData(UMVVM_LoadSlot* LoadSlot, int32 SlotIndex);
 
+	// The class type used to create save game instances for the load screen (stores save slot metadata like player names and slot status)
+	// The value of this variable is set in the editor in a blueprint that derives from this class 
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<USaveGame> LoadScreenSaveGameClass;
 };

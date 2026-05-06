@@ -16,18 +16,51 @@ class FOX_API UMVVM_LoadSlot : public UMVVMViewModelBase
 {
 	GENERATED_BODY()
 public:
-
+	
+	// Delegate that broadcasts widget switcher index changes to update the UI state between different views (e.g., slot display and name entry)
+	// BlueprintAssignable allows Blueprint scripts to bind callback functions to this delegate.
+	// C++ code can broadcast events, and all Blueprint functions bound to this delegate will be notified.
 	UPROPERTY(BlueprintAssignable)
 	FSetWidgetSwitcherIndex SetWidgetSwitcherIndex;
 
+	// Refreshes the slot's UI state and data after it has been saved or modified
 	void InitializeSlot();
 
-	UPROPERTY()
-	FString PlayerName;
-
-	UPROPERTY()
-	FString LoadSlotName;
-
+	// String identifier representing the index of this slot (e.g., "0", "1", "2")
 	UPROPERTY()
 	FString SlotIndex;
+
+	/** Field Notifies */
+
+	// Sets the player's name for this save slot and notifies bound UI elements of the change
+	void SetPlayerName(FString InPlayerName);
+
+	// Sets the unique save slot name identifier and notifies bound UI elements of the change
+	void SetLoadSlotName(FString InLoadSlotName);
+	
+	// Returns the player name associated with this save slot, used for displaying in the UI
+	FString GetPlayerName() const { return PlayerName; }
+
+	// Returns the unique save slot identifier name used for loading and saving game data
+	FString GetLoadSlotName() const { return LoadSlotName; }
+
+private:
+	
+	// The name of the player associated with this save slot, displayed in the UI and used for identification
+	// FieldNotify: Enables MVVM binding - automatically notifies bound UI elements when the value changes
+	// Setter: Specifies that SetPlayerName() function (must be named exactly like this) should be used to modify this 
+	// property (enables proper notification)
+	// Getter: Specifies that GetPlayerName() function (must be named exactly like this) should be used to read this property
+	// meta = (AllowPrivateAccess = "true"): Allows Blueprint access to this private member variable
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Setter, Getter, meta = (AllowPrivateAccess = "true"))
+	FString PlayerName;
+
+	// The unique identifier name for this save slot (e.g., "LoadSlot_0"), used for loading and saving game data
+	// FieldNotify: Enables MVVM binding - automatically notifies bound UI elements when the value changes
+	// Setter: Specifies that SetLoadSlotName() function (must be named exactly like this) should be used to modify this
+	// property (enables proper notification)
+	// Getter: Specifies that GetLoadSlotName() function (must be named exactly like this) should be used to read this property
+	// meta = (AllowPrivateAccess = "true"): Allows Blueprint access to this private member variable
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Setter, Getter, meta = (AllowPrivateAccess = "true"))
+	FString LoadSlotName;
 };
