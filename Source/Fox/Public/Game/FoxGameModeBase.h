@@ -6,6 +6,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "FoxGameModeBase.generated.h"
 
+class UMVVM_LoadSlot;
+class USaveGame;
 class UAbilityInfo;
 class UCharacterClassInfo;
 
@@ -27,4 +29,9 @@ public:
 	// abilities in the game, including their tags, icons, materials, level requirements, and ability classes
 	UPROPERTY(EditDefaultsOnly, Category = "Ability Info")
 	TObjectPtr<UAbilityInfo> AbilityInfo;
+	
+	void SaveSlotData(UMVVM_LoadSlot* LoadSlot, int32 SlotIndex);
+
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<USaveGame> LoadScreenSaveGameClass;
 };
