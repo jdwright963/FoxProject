@@ -36,7 +36,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void NewGameButtonPressed(int32 Slot);
 
-	// Handles selecting an existing save slot to load the game from
+	// Handles selecting an existing save slot to load the game from that slot
 	UFUNCTION(BlueprintCallable)
 	void SelectSlotButtonPressed(int32 Slot);
 	

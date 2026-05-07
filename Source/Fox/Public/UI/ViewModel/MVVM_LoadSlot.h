@@ -11,6 +11,10 @@
 // Used to switch between different UI states in the load slot widget (e.g., between slot display view and name entry view)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSetWidgetSwitcherIndex, int32, WidgetSwitcherIndex);
 
+// Dynamic multicast delegate that broadcasts when the select slot button should be enabled or disabled based on slot state
+// Used to control the interactivity of the select button (e.g., disabled for vacant slots, enabled for slots with saved data)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEnableSelectSlotButton, bool, bEnable);
+
 /**
  * 
  */
@@ -25,6 +29,13 @@ public:
 	// C++ code can broadcast events, and all Blueprint functions bound to this delegate will be notified.
 	UPROPERTY(BlueprintAssignable)
 	FSetWidgetSwitcherIndex SetWidgetSwitcherIndex;
+	
+	// Delegate that broadcasts when the select slot button should be enabled or disabled based on the slot's current state
+	// BlueprintAssignable allows Blueprint scripts to bind callback functions to this delegate.
+	// C++ code can broadcast enable/disable events, and all Blueprint functions bound to this delegate will be notified
+	// to control the interactivity of the select button (e.g., disabled for vacant slots, enabled for slots with saved data)
+	UPROPERTY(BlueprintAssignable)
+	FEnableSelectSlotButton EnableSelectSlotButton;
 
 	// Refreshes the slot's UI state and data after it has been saved or modified
 	void InitializeSlot();

@@ -68,7 +68,22 @@ void UMVVM_LoadScreen::NewGameButtonPressed(int32 Slot)
 
 void UMVVM_LoadScreen::SelectSlotButtonPressed(int32 Slot)
 {
-	
+	// Iterate through all load slots in the LoadSlots map to update their select button states based on the currently selected slot
+	for (const TTuple<int32, UMVVM_LoadSlot*> LoadSlot : LoadSlots)
+	{
+		// Check if the current load slot's index matches the slot that was just selected by the player
+		if (LoadSlot.Key == Slot)
+		{
+			// Broadcast false to disable the select button for this slot since it's now the active selection
+			LoadSlot.Value->EnableSelectSlotButton.Broadcast(false);
+		}
+		// If this is NOT the currently selected slot, we need to enable its select button so it can be clicked
+		else
+		{
+			// Broadcast true to enable the select button for this unselected slot, allowing the player to switch to it
+			LoadSlot.Value->EnableSelectSlotButton.Broadcast(true);
+		}
+	}
 }
 
 void UMVVM_LoadScreen::LoadData()
