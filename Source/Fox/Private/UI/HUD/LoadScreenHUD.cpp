@@ -34,4 +34,7 @@ void ALoadScreenHUD::BeginPlay()
 
 	// Call initialization logic to complete widget setup (e.g., view model binding)
 	LoadScreenWidget->BlueprintInitializeWidget();
+	
+	// Loads saved data from disk for all save slots and updates their view models with player names and slot statuses
+	LoadScreenViewModel->LoadData();
 }

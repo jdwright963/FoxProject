@@ -25,6 +25,8 @@ void AFoxGameModeBase::SaveSlotData(UMVVM_LoadSlot* LoadSlot, int32 SlotIndex)
 	// Assign the player name from the load slot view model to the save game object
 	LoadScreenSaveGame->PlayerName = LoadSlot->GetPlayerName();
 	
+	LoadScreenSaveGame->SaveSlotStatus = Taken;
+	
 	/*
 	 * Write the save game object to persistent storage
 	 * Parameters:
@@ -33,4 +35,30 @@ void AFoxGameModeBase::SaveSlotData(UMVVM_LoadSlot* LoadSlot, int32 SlotIndex)
 	 * - SlotIndex: The numeric index of the save slot (0, 1, or 2) used for organizing multiple save files
 	 */
 	UGameplayStatics::SaveGameToSlot(LoadScreenSaveGame, LoadSlot->GetLoadSlotName(), SlotIndex);
+}
+
+ULoadScreenSaveGame* AFoxGameModeBase::GetSaveSlotData(const FString& SlotName, int32 SlotIndex) const
+{
+	// Initialize a pointer to hold the save game object, starting as nullptr until we determine if we load or create one
+	USaveGame* SaveGameObject = nullptr;
+	
+	// Check if a save game file already exists at the specified slot name and index
+	// DoesSaveGameExist is an engine-defined function from UGameplayStatics that checks if a save file exists on disk
+	if (UGameplayStatics::DoesSaveGameExist(SlotName, SlotIndex))
+	{
+		// Load the existing save game data from disk into the SaveGameObject
+		// LoadGameFromSlot is an engine-defined function from UGameplayStatics that deserializes save data from disk
+		SaveGameObject = UGameplayStatics::LoadGameFromSlot(SlotName, SlotIndex);
+	}
+	else
+	{
+		// No save exists, so create a new save game object with default values using our LoadScreenSaveGameClass
+		// CreateSaveGameObject is an engine-defined function from UGameplayStatics that instantiates a new save game object
+		SaveGameObject = UGameplayStatics::CreateSaveGameObject(LoadScreenSaveGameClass);
+	}
+	// Cast the generic USaveGame pointer to our specific ULoadScreenSaveGame type to access custom properties
+	ULoadScreenSaveGame* LoadScreenSaveGame = Cast<ULoadScreenSaveGame>(SaveGameObject);
+	
+	// Return the save game object, either loaded from disk if it existed or newly created with default values
+	return LoadScreenSaveGame;
 }

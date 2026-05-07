@@ -6,6 +6,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "FoxGameModeBase.generated.h"
 
+class ULoadScreenSaveGame;
 class UMVVM_LoadSlot;
 class USaveGame;
 class UAbilityInfo;
@@ -32,6 +33,9 @@ public:
 	
 	// Saves the load slot data (player name, map name, player level, etc.) to disk at the specified slot index
 	void SaveSlotData(UMVVM_LoadSlot* LoadSlot, int32 SlotIndex);
+	
+	// Loads and returns save slot data from disk for the specified slot name and index, or creates a new save slot if none exists
+	ULoadScreenSaveGame* GetSaveSlotData(const FString& SlotName, int32 SlotIndex) const;
 
 	// The class type used to create save game instances for the load screen (stores save slot metadata like player names and slot status)
 	// The value of this variable is set in the editor in a blueprint that derives from this class 

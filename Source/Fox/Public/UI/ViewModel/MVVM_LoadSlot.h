@@ -4,8 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "MVVMViewModelBase.h"
+#include "Game/LoadScreenSaveGame.h"
 #include "MVVM_LoadSlot.generated.h"
 
+// Dynamic multicast delegate that broadcasts widget switcher index changes with a single int32 parameter
+// Used to switch between different UI states in the load slot widget (e.g., between slot display view and name entry view)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSetWidgetSwitcherIndex, int32, WidgetSwitcherIndex);
 
 /**
@@ -29,6 +32,10 @@ public:
 	// String identifier representing the index of this slot (e.g., "0", "1", "2")
 	UPROPERTY()
 	FString SlotIndex;
+	
+	// The current status/state of this save slot (e.g., vacant, entered name, taken) used to determine UI display and interaction behavior
+	UPROPERTY()
+	TEnumAsByte<ESaveSlotStatus> SlotStatus;
 
 	/** Field Notifies */
 

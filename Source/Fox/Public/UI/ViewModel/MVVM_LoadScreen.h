@@ -39,6 +39,9 @@ public:
 	// Handles selecting an existing save slot to load the game from
 	UFUNCTION(BlueprintCallable)
 	void SelectSlotButtonPressed(int32 Slot);
+	
+	// Loads saved data from disk for all save slots and updates their view models with player names and slot statuses
+	void LoadData();
 
 private:
 

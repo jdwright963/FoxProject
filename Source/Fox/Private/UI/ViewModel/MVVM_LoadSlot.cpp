@@ -5,8 +5,11 @@
 
 void UMVVM_LoadSlot::InitializeSlot()
 {
-	// TODO: Check slot status based on loaded data
-	SetWidgetSwitcherIndex.Broadcast(2);
+	// Retrieves the underlying integer value from the SlotStatus enum to use as the widget switcher index
+	const int32 WidgetSwitcherIndex = SlotStatus.GetValue();
+	
+	// Broadcasts the index to any listening UI elements to switch which widget is displayed (e.g., empty slot, name entry, or existing save)
+	SetWidgetSwitcherIndex.Broadcast(WidgetSwitcherIndex);
 }
 
 void UMVVM_LoadSlot::SetPlayerName(FString InPlayerName)

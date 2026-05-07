@@ -7,6 +7,20 @@
 #include "LoadScreenSaveGame.generated.h"
 
 /**
+ * Represents the current state of a save slot in the load screen UI.
+ * - Vacant: The slot is empty and available for a new game
+ * - EnterName: The slot is selected for a new game and awaiting player name input
+ * - Taken: The slot contains an existing save with player data
+ */
+UENUM(BlueprintType)
+enum ESaveSlotStatus
+{
+	Vacant,
+	EnterName,
+	Taken
+};
+
+/**
  * 
  */
 UCLASS()
@@ -26,4 +40,9 @@ public:
 	// The player's chosen name for their character, displayed in the load screen UI with a default value if not set
 	UPROPERTY()
 	FString PlayerName = FString("Default Name");
+	
+	// The current UI state of this save slot, determining whether it's empty (Vacant), awaiting name input (EnterName),
+	// or contains existing save data (Taken)
+	UPROPERTY()
+	TEnumAsByte<ESaveSlotStatus> SaveSlotStatus = Vacant;
 };

@@ -50,6 +50,8 @@ void UMVVM_LoadScreen::NewSlotButtonPressed(int32 Slot, const FString& EnteredNa
 
 	// Assign the player-entered name to the selected load slot's player name field
 	LoadSlots[Slot]->SetPlayerName(EnteredName);
+	
+	LoadSlots[Slot]->SlotStatus = Taken;
 
 	// Save the load slot data to persistent storage via the game mode's save system
 	FoxGameMode->SaveSlotData(LoadSlots[Slot], Slot);
@@ -67,4 +69,41 @@ void UMVVM_LoadScreen::NewGameButtonPressed(int32 Slot)
 void UMVVM_LoadScreen::SelectSlotButtonPressed(int32 Slot)
 {
 	
+}
+
+void UMVVM_LoadScreen::LoadData()
+{
+	// Retrieve the current game mode and cast it to FoxGameModeBase to access save slot data functionality
+	AFoxGameModeBase* FoxGameMode = Cast<AFoxGameModeBase>(UGameplayStatics::GetGameMode(this));
+
+	// Iterate through all registered load slots in the map to load their saved data
+	for (const TTuple<int32, UMVVM_LoadSlot*> LoadSlot : LoadSlots)
+	{
+		/*
+		 * Call GetSaveSlotData to retrieve the ULoadScreenSaveGame object from persistent storage for this slot
+		 * GetSaveSlotData is a function on AFoxGameModeBase that loads save data from disk
+		 * First parameter: LoadSlot.Value->GetLoadSlotName() - LoadSlot is a TTuple<int32, UMVVM_LoadSlot*> where
+		 *   .Value accesses the UMVVM_LoadSlot* pointer (the second element of the tuple), then we call
+		 *   GetLoadSlotName() on that view model to retrieve the FString slot name (e.g., "LoadSlot_0")
+		 * Second parameter: LoadSlot.Key - accesses the int32 index (the first element of the tuple) representing
+		 *   the slot number (0, 1, or 2) used as an additional identifier for the save slot
+		 */
+		ULoadScreenSaveGame* SaveObject = FoxGameMode->GetSaveSlotData(LoadSlot.Value->GetLoadSlotName(), LoadSlot.Key);
+
+		// Extract the player's name from the save object
+		const FString PlayerName = SaveObject->PlayerName;
+
+		// Extract the slot status (e.g., Empty, Taken) from the save object
+		TEnumAsByte<ESaveSlotStatus> SaveSlotStatus = SaveObject->SaveSlotStatus;
+
+		// Assign the loaded slot status to the view model's SlotStatus property 
+		// .Value accesses the UMVVM_LoadSlot* pointer (the second element of the tuple)
+		LoadSlot.Value->SlotStatus = SaveSlotStatus;
+
+		// Assign the loaded player name to the as the player name for the current load slot
+		LoadSlot.Value->SetPlayerName(PlayerName);
+
+		// Initialize the slot to refresh its state and update its UI representation with the loaded data
+		LoadSlot.Value->InitializeSlot();
+	}
 }
