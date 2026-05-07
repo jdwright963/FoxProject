@@ -6,6 +6,9 @@
 #include "MVVMViewModelBase.h"
 #include "MVVM_LoadScreen.generated.h"
 
+// Dynamic multicast delegate that broadcasts when a save slot is selected, allowing multiple listeners to respond to slot selection events
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSlotSelected);
+
 class UMVVM_LoadSlot;
 
 /**
@@ -19,6 +22,10 @@ public:
 
 	// Initializes the three load slot view models and registers them in the LoadSlots map
 	void InitializeLoadSlots();
+	
+	// Blueprint-assignable delegate that broadcasts when a save slot is selected, allowing Blueprint to bind and respond to slot selection events
+	UPROPERTY(BlueprintAssignable)
+	FSlotSelected SlotSelected;
 
 	// The class type used to create load slot view model instances. We set this value in the blueprint derived from this class 
 	UPROPERTY(EditDefaultsOnly)

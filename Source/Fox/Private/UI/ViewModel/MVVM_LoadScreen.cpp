@@ -51,6 +51,7 @@ void UMVVM_LoadScreen::NewSlotButtonPressed(int32 Slot, const FString& EnteredNa
 	// Assign the player-entered name to the selected load slot's player name field
 	LoadSlots[Slot]->SetPlayerName(EnteredName);
 	
+	// Mark the slot status as Taken to indicate this slot now contains valid save data
 	LoadSlots[Slot]->SlotStatus = Taken;
 
 	// Save the load slot data to persistent storage via the game mode's save system
@@ -68,6 +69,9 @@ void UMVVM_LoadScreen::NewGameButtonPressed(int32 Slot)
 
 void UMVVM_LoadScreen::SelectSlotButtonPressed(int32 Slot)
 {
+	// Notify all bound listeners (e.g., UI widgets) that a save slot has been selected, triggering any registered callback functions.
+	SlotSelected.Broadcast();
+	
 	// Iterate through all load slots in the LoadSlots map to update their select button states based on the currently selected slot
 	for (const TTuple<int32, UMVVM_LoadSlot*> LoadSlot : LoadSlots)
 	{
