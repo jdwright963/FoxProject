@@ -39,6 +39,9 @@ public:
 	
 	// Deletes the save slot data from disk for the specified slot name and index (static method to allow deletion without an instance of this class)
 	static void DeleteSlot(const FString& SlotName, int32 SlotIndex);
+	
+	// Initiates level travel to the map associated with the provided save slot by looking up the map name in the Maps dictionary and opening the corresponding level
+	void TravelToMap(UMVVM_LoadSlot* Slot);
 
 	// The class type used to create save game instances for the load screen (stores save slot metadata like player names and slot status)
 	// The value of this variable is set in the editor in a blueprint that derives from this class 

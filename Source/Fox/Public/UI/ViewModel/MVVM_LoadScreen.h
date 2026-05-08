@@ -51,6 +51,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void DeleteButtonPressed();
 	
+	// Handles the play button press by loading the game from the currently selected save slot and traveling to its associated map
+	UFUNCTION(BlueprintCallable)
+	void PlayButtonPressed();
+	
 	// Loads saved data from disk for all save slots and updates their view models with player names and slot statuses
 	void LoadData();
 

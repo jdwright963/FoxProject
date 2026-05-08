@@ -77,6 +77,19 @@ void AFoxGameModeBase::DeleteSlot(const FString& SlotName, int32 SlotIndex)
 	}
 }
 
+void AFoxGameModeBase::TravelToMap(UMVVM_LoadSlot* Slot)
+{
+	// Retrieve the unique slot name identifier from the load slot view model (e.g., "LoadSlot_0", "LoadSlot_1", or "LoadSlot_2")
+	const FString SlotName = Slot->GetLoadSlotName();
+
+	// Get the numeric index of the save slot (0, 1, or 2) to identify which save file to use
+	const int32 SlotIndex = Slot->SlotIndex;
+
+	// Open the level associated with this save slot by looking up the map's soft object pointer in the Maps dictionary using the map name,
+	// then travel to that level (FindChecked will crash if the map name doesn't exist in the dictionary, ensuring map configuration errors are caught)
+	UGameplayStatics::OpenLevelBySoftObjectPtr(Slot, Maps.FindChecked(Slot->GetMapName()));
+}
+
 void AFoxGameModeBase::BeginPlay()
 {
 	Super::BeginPlay();

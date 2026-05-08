@@ -123,6 +123,25 @@ void UMVVM_LoadScreen::DeleteButtonPressed()
 	}
 }
 
+void UMVVM_LoadScreen::PlayButtonPressed()
+{
+	// Retrieve the current game mode and cast it to FoxGameModeBase to access level travel functionality
+	AFoxGameModeBase* FoxGameMode = Cast<AFoxGameModeBase>(UGameplayStatics::GetGameMode(this));
+
+	/*
+	 * Check if a valid slot is currently selected before attempting to load and travel to its associated map
+	 * IsValid() is a global engine-defined function (not specific to any single class) that validates UObject pointers
+	 * It checks if the pointer is not null, not pending kill, and references a valid object in memory
+	 * This function is used throughout Unreal Engine code to safely validate any UObject-derived pointer before use
+	 * In this case, we're checking if SelectedSlot (a UMVVM_LoadSlot pointer) is safe to dereference
+	 */
+	if (IsValid(SelectedSlot))
+	{
+		// Initiate level travel to the map associated with the selected slot using the game mode's TravelToMap method
+		FoxGameMode->TravelToMap(SelectedSlot);
+	}
+}
+
 void UMVVM_LoadScreen::LoadData()
 {
 	// Retrieve the current game mode and cast it to FoxGameModeBase to access save slot data functionality
