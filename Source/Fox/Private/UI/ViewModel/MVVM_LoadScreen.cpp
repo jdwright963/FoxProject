@@ -157,5 +157,8 @@ void UMVVM_LoadScreen::LoadData()
 
 		// Initialize the slot to refresh its state and update its UI representation with the loaded data
 		LoadSlot.Value->InitializeSlot();
+		
+		// Assign the loaded map name from the save object to the view model to track which level/map this save is associated with
+		LoadSlot.Value->SetMapName(SaveObject->MapName);
 	}
 }

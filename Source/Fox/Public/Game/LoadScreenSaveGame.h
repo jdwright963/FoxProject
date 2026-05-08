@@ -41,6 +41,10 @@ public:
 	UPROPERTY()
 	FString PlayerName = FString("Default Name");
 	
+	// The name identifier of the level/map associated with this save slot, used to determine which map to load when the player continues from this save
+	UPROPERTY()
+	FString MapName = FString("Default Map Name");
+	
 	// The current UI state of this save slot, determining whether it's empty (Vacant), awaiting name input (EnterName),
 	// or contains existing save data (Taken)
 	UPROPERTY()

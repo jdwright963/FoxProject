@@ -25,7 +25,11 @@ void AFoxGameModeBase::SaveSlotData(UMVVM_LoadSlot* LoadSlot, int32 SlotIndex)
 	// Assign the player name from the load slot view model to the save game object
 	LoadScreenSaveGame->PlayerName = LoadSlot->GetPlayerName();
 	
+	// Mark the save slot as "Taken" to indicate that it contains valid save data and is no longer vacant
 	LoadScreenSaveGame->SaveSlotStatus = Taken;
+
+	// Assign the map name from the load slot view model to track which level/map this save is associated with
+	LoadScreenSaveGame->MapName = LoadSlot->GetMapName();
 	
 	/*
 	 * Write the save game object to persistent storage
