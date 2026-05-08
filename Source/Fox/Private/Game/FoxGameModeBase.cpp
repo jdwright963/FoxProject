@@ -62,3 +62,13 @@ ULoadScreenSaveGame* AFoxGameModeBase::GetSaveSlotData(const FString& SlotName, 
 	// Return the save game object, either loaded from disk if it existed or newly created with default values
 	return LoadScreenSaveGame;
 }
+
+void AFoxGameModeBase::DeleteSlot(const FString& SlotName, int32 SlotIndex)
+{
+	// Check if a save game file exists at the specified slot name and index before attempting to delete it
+	if (UGameplayStatics::DoesSaveGameExist(SlotName, SlotIndex))
+	{
+		// Delete the save game file from disk, removing all saved data associated with this slot
+		UGameplayStatics::DeleteGameInSlot(SlotName, SlotIndex);
+	}
+}

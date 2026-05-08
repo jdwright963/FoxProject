@@ -47,6 +47,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SelectSlotButtonPressed(int32 Slot);
 	
+	// Handles deleting the currently selected save slot by removing its saved data from disk
+	UFUNCTION(BlueprintCallable)
+	void DeleteButtonPressed();
+	
 	// Loads saved data from disk for all save slots and updates their view models with player names and slot statuses
 	void LoadData();
 
@@ -67,4 +71,8 @@ private:
 	// View model for the third save slot (index 2)
 	UPROPERTY()
 	TObjectPtr<UMVVM_LoadSlot> LoadSlot_2;
+	
+	// The currently selected load slot view model, tracking which save slot the player has chosen for loading, deleting, or overwriting
+	UPROPERTY()
+	TObjectPtr<UMVVM_LoadSlot> SelectedSlot;
 };

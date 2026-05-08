@@ -40,9 +40,9 @@ public:
 	// Refreshes the slot's UI state and data after it has been saved or modified
 	void InitializeSlot();
 
-	// String identifier representing the index of this slot (e.g., "0", "1", "2")
+	// Integer representing the index of this slot (e.g., "0", "1", "2")
 	UPROPERTY()
-	FString SlotIndex;
+	int32 SlotIndex;
 	
 	// The current status/state of this save slot (e.g., vacant, entered name, taken) used to determine UI display and interaction behavior
 	UPROPERTY()

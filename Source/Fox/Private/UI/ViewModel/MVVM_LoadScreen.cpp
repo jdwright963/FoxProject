@@ -15,6 +15,9 @@ void UMVVM_LoadScreen::InitializeLoadSlots()
 	// Assign the unique identifier name to the first load slot
 	LoadSlot_0->SetLoadSlotName(FString("LoadSlot_0"));
 	
+	// Set the slot index to 0 to identify this as the first save slot
+	LoadSlot_0->SlotIndex = 0;
+	
 	// Register the first load slot in the map with index 0 for quick lookup
 	LoadSlots.Add(0, LoadSlot_0);
 	
@@ -27,6 +30,9 @@ void UMVVM_LoadScreen::InitializeLoadSlots()
 	// Assign the unique identifier name to the second load slot
 	LoadSlot_1->SetLoadSlotName(FString("LoadSlot_1"));
 	
+	// Set the slot index to 1 to identify this as the second save slot
+	LoadSlot_1->SlotIndex = 1;
+	
 	// Create a new view model instance of type LoadSlotViewModelClass for the third load slot
 	LoadSlot_2 = NewObject<UMVVM_LoadSlot>(this, LoadSlotViewModelClass);
 	
@@ -35,6 +41,9 @@ void UMVVM_LoadScreen::InitializeLoadSlots()
 	
 	// Assign the unique identifier name to the third load slot
 	LoadSlot_2->SetLoadSlotName(FString("LoadSlot_2"));
+	
+	// Set the slot index to 2 to identify this as the third save slot
+	LoadSlot_2->SlotIndex = 2;
 }
 
 UMVVM_LoadSlot* UMVVM_LoadScreen::GetLoadSlotViewModelByIndex(int32 Index) const
@@ -87,6 +96,27 @@ void UMVVM_LoadScreen::SelectSlotButtonPressed(int32 Slot)
 			// Broadcast true to enable the select button for this unselected slot, allowing the player to switch to it
 			LoadSlot.Value->EnableSelectSlotButton.Broadcast(true);
 		}
+	}
+	// Store the currently selected slot in the SelectedSlot member variable for later operations such as deletion or loading
+	SelectedSlot = LoadSlots[Slot];
+}
+
+void UMVVM_LoadScreen::DeleteButtonPressed()
+{
+	// Check if a valid slot is currently selected before attempting to delete it
+	if (IsValid(SelectedSlot))
+	{
+		// Delete the save file from disk using the static DeleteSlot method with the slot's name and index
+		AFoxGameModeBase::DeleteSlot(SelectedSlot->GetLoadSlotName(), SelectedSlot->SlotIndex);
+
+		// Mark the slot status as Vacant to indicate this slot is now empty and available for new saves
+		SelectedSlot->SlotStatus = Vacant;
+
+		// Reinitialize the slot to refresh its state and update its UI representation to reflect the vacant status
+		SelectedSlot->InitializeSlot();
+
+		// Broadcast true to enable the select button for this slot since it's no longer selected after deletion
+		SelectedSlot->EnableSelectSlotButton.Broadcast(true);
 	}
 }
 
