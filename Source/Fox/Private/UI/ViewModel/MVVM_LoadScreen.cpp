@@ -56,6 +56,9 @@ void UMVVM_LoadScreen::NewSlotButtonPressed(int32 Slot, const FString& EnteredNa
 {
 	// Retrieve the current game mode and cast it to FoxGameModeBase to access save functionality
 	AFoxGameModeBase* FoxGameMode = Cast<AFoxGameModeBase>(UGameplayStatics::GetGameMode(this));
+	
+	// Assign the default map name from the game mode to the selected load slot, setting which level will be loaded when this save is started
+	LoadSlots[Slot]->SetMapName(FoxGameMode->DefaultMapName);
 
 	// Assign the player-entered name to the selected load slot's player name field
 	LoadSlots[Slot]->SetPlayerName(EnteredName);

@@ -44,4 +44,20 @@ public:
 	// The value of this variable is set in the editor in a blueprint that derives from this class 
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<USaveGame> LoadScreenSaveGameClass;
+	
+	// The name identifier of the default starting map (e.g., "OpenWorld" or "Level1") used to initialize the Maps dictionary (map)
+	UPROPERTY(EditDefaultsOnly)
+	FString DefaultMapName;
+
+	// A soft object pointer to the default starting map's world asset, allowing lazy loading of the map when needed
+	UPROPERTY(EditDefaultsOnly)
+	TSoftObjectPtr<UWorld> DefaultMap;
+
+	// A dictionary (map) that maps map name strings to their corresponding world asset soft pointers, enabling map lookup and travel by name
+	UPROPERTY(EditDefaultsOnly)
+	TMap<FString, TSoftObjectPtr<UWorld>> Maps;
+
+protected:
+	// Initializes the game mode by populating the Maps dictionary with the default map entry
+	virtual void BeginPlay() override;
 };

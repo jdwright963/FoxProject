@@ -52,12 +52,18 @@ public:
 
 	// Sets the player's name for this save slot and notifies bound UI elements of the change
 	void SetPlayerName(FString InPlayerName);
+	
+	// Sets the map name for this save slot and notifies bound UI elements of the change
+	void SetMapName(FString InMapName);
 
 	// Sets the unique save slot name identifier and notifies bound UI elements of the change
 	void SetLoadSlotName(FString InLoadSlotName);
 	
 	// Returns the player name associated with this save slot, used for displaying in the UI
 	FString GetPlayerName() const { return PlayerName; }
+	
+	// Returns the map name associated with this save slot, used for displaying in the UI
+	FString GetMapName() const { return MapName; }
 
 	// Returns the unique save slot identifier name used for loading and saving game data
 	FString GetLoadSlotName() const { return LoadSlotName; }
@@ -72,6 +78,15 @@ private:
 	// meta = (AllowPrivateAccess = "true"): Allows Blueprint access to this private member variable
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Setter, Getter, meta = (AllowPrivateAccess = "true"))
 	FString PlayerName;
+	
+	// The name of the map/level associated with this save slot, displayed in the UI to show where the player's save is located
+	// FieldNotify: Enables MVVM binding - automatically notifies bound UI elements when the value changes
+	// Setter: Specifies that SetMapName() function (must be named exactly like this) should be used to modify this
+	// property (enables proper notification)
+	// Getter: Specifies that GetMapName() function (must be named exactly like this) should be used to read this property
+	// meta = (AllowPrivateAccess = "true"): Allows Blueprint access to this private member variable
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Setter, Getter, meta = (AllowPrivateAccess="true"));
+	FString MapName;
 
 	// The unique identifier name for this save slot (e.g., "LoadSlot_0"), used for loading and saving game data
 	// FieldNotify: Enables MVVM binding - automatically notifies bound UI elements when the value changes

@@ -72,3 +72,11 @@ void AFoxGameModeBase::DeleteSlot(const FString& SlotName, int32 SlotIndex)
 		UGameplayStatics::DeleteGameInSlot(SlotName, SlotIndex);
 	}
 }
+
+void AFoxGameModeBase::BeginPlay()
+{
+	Super::BeginPlay();
+	
+	// Initialize the Maps dictionary (map) with the default map entry, associating the default map name with its world reference
+	Maps.Add(DefaultMapName, DefaultMap);
+}
