@@ -69,6 +69,9 @@ void UMVVM_LoadScreen::NewSlotButtonPressed(int32 Slot, const FString& EnteredNa
 	
 	// Mark the slot status as Taken to indicate this slot now contains valid save data
 	LoadSlots[Slot]->SlotStatus = Taken;
+	
+	// Assign the default player start tag from the game mode to the load slot to determine which PlayerStart actor the player will spawn at when starting this new game
+	LoadSlots[Slot]->PlayerStartTag = FoxGameMode->DefaultPlayerStartTag;
 
 	// Save the load slot data to persistent storage via the game mode's save system
 	FoxGameMode->SaveSlotData(LoadSlots[Slot], Slot);
@@ -143,6 +146,13 @@ void UMVVM_LoadScreen::PlayButtonPressed()
 {
 	// Retrieve the current game mode and cast it to FoxGameModeBase to access level travel functionality
 	AFoxGameModeBase* FoxGameMode = Cast<AFoxGameModeBase>(UGameplayStatics::GetGameMode(this));
+	
+	// Retrieve the game instance and cast it to UFoxGameInstance to access persistent game-wide data storage
+	UFoxGameInstance* FoxGameInstance = Cast<UFoxGameInstance>(FoxGameMode->GetGameInstance());
+
+	// Store the selected slot's player start tag in the game instance so it persists during level travel and determines 
+	// which PlayerStart actor to spawn the player at in the loaded map
+	FoxGameInstance->PlayerStartTag = SelectedSlot->PlayerStartTag;
 
 	/*
 	 * Check if a valid slot is currently selected before attempting to load and travel to its associated map
@@ -195,7 +205,11 @@ void UMVVM_LoadScreen::LoadData()
 		
 		// Assign the loaded map name from the save object to the view model to track which level/map this save is associated with
 		LoadSlot.Value->SetMapName(SaveObject->MapName);
-	}
+		
+		// Assign the loaded player start tag from the save object to the view model to determine which PlayerStart 
+		// actor the player will spawn at when loading this save
+		LoadSlot.Value->PlayerStartTag = SaveObject->PlayerStartTag;
+	} 
 }
 
 void UMVVM_LoadScreen::SetNumLoadSlots(int32 InNumLoadSlots)

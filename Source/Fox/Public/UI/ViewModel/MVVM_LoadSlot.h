@@ -47,6 +47,10 @@ public:
 	// The current status/state of this save slot (e.g., vacant, entered name, taken) used to determine UI display and interaction behavior
 	UPROPERTY()
 	TEnumAsByte<ESaveSlotStatus> SlotStatus;
+	
+	// The tag identifier used to determine which PlayerStart actor to spawn the player at when loading this save slot
+	UPROPERTY()
+	FName PlayerStartTag;
 
 	/** Field Notifies */
 

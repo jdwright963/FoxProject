@@ -45,6 +45,10 @@ public:
 	UPROPERTY()
 	FString MapName = FString("Default Map Name");
 	
+	// The tag identifier used to select which PlayerStart actor to spawn the player at when loading into a level from this save slot
+	UPROPERTY()
+	FName PlayerStartTag;
+	
 	// The current UI state of this save slot, determining whether it's empty (Vacant), awaiting name input (EnterName),
 	// or contains existing save data (Taken)
 	UPROPERTY()

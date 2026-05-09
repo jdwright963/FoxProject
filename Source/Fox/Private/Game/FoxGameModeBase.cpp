@@ -33,6 +33,9 @@ void AFoxGameModeBase::SaveSlotData(UMVVM_LoadSlot* LoadSlot, int32 SlotIndex)
 	// Assign the map name from the load slot view model to track which level/map this save is associated with
 	LoadScreenSaveGame->MapName = LoadSlot->GetMapName();
 	
+	// Store the PlayerStart tag from the load slot to determine which spawn point the player should use when loading into the map
+	LoadScreenSaveGame->PlayerStartTag = LoadSlot->PlayerStartTag;
+	
 	/*
 	 * Write the save game object to persistent storage
 	 * Parameters:
