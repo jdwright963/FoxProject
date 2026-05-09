@@ -3,6 +3,7 @@
 
 #include "UI/ViewModel/MVVM_LoadScreen.h"
 
+#include "Game/FoxGameInstance.h"
 #include "Game/FoxGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "UI/ViewModel/MVVM_LoadSlot.h"
@@ -74,6 +75,18 @@ void UMVVM_LoadScreen::NewSlotButtonPressed(int32 Slot, const FString& EnteredNa
 
 	// Initialize the slot to refresh its state and update its UI representation
 	LoadSlots[Slot]->InitializeSlot();
+	
+	// Retrieve the game instance and cast it to UFoxGameInstance to access persistent game-wide data storage for save slot information
+	UFoxGameInstance* FoxGameInstance = Cast<UFoxGameInstance>(FoxGameMode->GetGameInstance());
+
+	// Store the selected load slot's name in the game instance so it persists across level transitions and can be used to load the correct save file
+	FoxGameInstance->LoadSlotName = LoadSlots[Slot]->GetLoadSlotName();
+
+	// Store the selected load slot's index in the game instance for quick numeric identification of the save slot during level travel
+	FoxGameInstance->LoadSlotIndex = LoadSlots[Slot]->SlotIndex;
+
+	// Store the default player start tag in the game instance to determine which PlayerStart actor to spawn the player at when the new game begins
+	FoxGameInstance->PlayerStartTag = FoxGameMode->DefaultPlayerStartTag;
 }
 
 void UMVVM_LoadScreen::NewGameButtonPressed(int32 Slot)

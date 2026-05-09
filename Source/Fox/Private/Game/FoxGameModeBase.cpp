@@ -3,6 +3,7 @@
 
 #include "Game/FoxGameModeBase.h"
 
+#include "Game/FoxGameInstance.h"
 #include "Game/LoadScreenSaveGame.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
@@ -93,6 +94,9 @@ void AFoxGameModeBase::TravelToMap(UMVVM_LoadSlot* Slot)
 
 AActor* AFoxGameModeBase::ChoosePlayerStart_Implementation(AController* Player)
 {
+	// Cast the game instance to our custom UFoxGameInstance type to access the PlayerStartTag property that determines which PlayerStart to use for spawning
+	UFoxGameInstance* FoxGameInstance = Cast<UFoxGameInstance>(GetGameInstance());
+	
 	// Declare an array to store all PlayerStart actors found in the world
 	TArray<AActor*> Actors;
 	
@@ -111,8 +115,8 @@ AActor* AFoxGameModeBase::ChoosePlayerStart_Implementation(AController* Player)
 			// Attempt to cast the current actor to APlayerStart to access PlayerStart-specific properties
 			if (APlayerStart* PlayerStart = Cast<APlayerStart>(Actor))
 			{
-				// Check if this PlayerStart has the tag "TheTag" to identify it as the preferred spawn point
-				if (PlayerStart->PlayerStartTag == FName("TheTag"))
+				// Check if this PlayerStart's tag matches the tag stored in the game instance, which determines the intended spawn location for the player
+				if (PlayerStart->PlayerStartTag == FoxGameInstance->PlayerStartTag)
 				{
 					// Assign this tagged PlayerStart as the selected spawn point since it matches our criteria
 					SelectedActor = PlayerStart;

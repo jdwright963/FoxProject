@@ -55,6 +55,10 @@ public:
 	// A soft object pointer to the default starting map's world asset, allowing lazy loading of the map when needed
 	UPROPERTY(EditDefaultsOnly)
 	TSoftObjectPtr<UWorld> DefaultMap;
+	
+	// The tag identifier used to select the appropriate PlayerStart actor for spawning the player, allowing different spawn points based on game state (e.g., loading from a save slot)
+	UPROPERTY(EditDefaultsOnly)
+	FName DefaultPlayerStartTag;
 
 	// A dictionary (map) that maps map name strings to their corresponding world asset soft pointers, enabling map lookup and travel by name
 	UPROPERTY(EditDefaultsOnly)
