@@ -4,6 +4,7 @@
 #include "Game/FoxGameModeBase.h"
 
 #include "Game/LoadScreenSaveGame.h"
+#include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
 #include "UI/ViewModel/MVVM_LoadSlot.h"
 
@@ -88,6 +89,44 @@ void AFoxGameModeBase::TravelToMap(UMVVM_LoadSlot* Slot)
 	// Open the level associated with this save slot by looking up the map's soft object pointer in the Maps dictionary using the map name,
 	// then travel to that level (FindChecked will crash if the map name doesn't exist in the dictionary, ensuring map configuration errors are caught)
 	UGameplayStatics::OpenLevelBySoftObjectPtr(Slot, Maps.FindChecked(Slot->GetMapName()));
+}
+
+AActor* AFoxGameModeBase::ChoosePlayerStart_Implementation(AController* Player)
+{
+	// Declare an array to store all PlayerStart actors found in the world
+	TArray<AActor*> Actors;
+	
+	// Retrieve all actors of type APlayerStart from the world and populate the Actors array with them
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), Actors);
+	
+	// Check if at least one PlayerStart actor was found in the level
+	if (Actors.Num() > 0)
+	{
+		// Initialize the selected actor with the first PlayerStart as a fallback in case no tagged PlayerStart is found
+		AActor* SelectedActor = Actors[0];
+		
+		// Iterate through all found PlayerStart actors to search for one with the specific tag
+		for (AActor* Actor : Actors)
+		{
+			// Attempt to cast the current actor to APlayerStart to access PlayerStart-specific properties
+			if (APlayerStart* PlayerStart = Cast<APlayerStart>(Actor))
+			{
+				// Check if this PlayerStart has the tag "TheTag" to identify it as the preferred spawn point
+				if (PlayerStart->PlayerStartTag == FName("TheTag"))
+				{
+					// Assign this tagged PlayerStart as the selected spawn point since it matches our criteria
+					SelectedActor = PlayerStart;
+					
+					// Exit the loop early since we found the PlayerStart we were looking for
+					break;
+				}
+			}
+		}
+		// Return the selected PlayerStart actor (either the one with "TheTag" or the first one found)
+		return SelectedActor;
+	}
+	// Return nullptr if no PlayerStart actors were found in the level
+	return nullptr;
 }
 
 void AFoxGameModeBase::BeginPlay()

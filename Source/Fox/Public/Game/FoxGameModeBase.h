@@ -59,6 +59,11 @@ public:
 	// A dictionary (map) that maps map name strings to their corresponding world asset soft pointers, enabling map lookup and travel by name
 	UPROPERTY(EditDefaultsOnly)
 	TMap<FString, TSoftObjectPtr<UWorld>> Maps;
+	
+	// Overridden implementation of a blueprint native event from the parent class that selects a player spawn 
+	// point by searching for a PlayerStart actor tagged with "TheTag",
+	// falling back to the first available PlayerStart if no tagged one is found, or nullptr if no PlayerStarts exist in the level
+	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 
 protected:
 	// Initializes the game mode by populating the Maps dictionary with the default map entry
