@@ -10,8 +10,11 @@
 #include "AbilitySystem/Data/LevelUpInfo.h"
 #include "AbilitySystem/Debuff/DebuffNiagaraComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Game/FoxGameModeBase.h"
+#include "Game/LoadScreenSaveGame.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "Player/FoxPlayerController.h"
 #include "Player/FoxPlayerState.h"
 #include "UI/HUD/FoxHUD.h"
@@ -782,6 +785,28 @@ void AFoxCharacter::HideMagicCircle_Implementation()
 		 * Now that the magic circle is hidden, we show the mouse cursor.
 		 */
 		FoxPlayerController->bShowMouseCursor = true;
+	}
+}
+
+void AFoxCharacter::SaveProgress_Implementation(const FName& CheckpointTag)
+{
+	// Retrieve the current game mode and cast it to AFoxGameModeBase to access Fox-specific save game functionality
+	AFoxGameModeBase* FoxGameMode = Cast<AFoxGameModeBase>(UGameplayStatics::GetGameMode(this));
+	
+	// Validate that the cast was successful and the game mode is of the correct type
+	if (FoxGameMode)
+	{
+		// Retrieve the current in-game save data object that contains the player's progress information
+		ULoadScreenSaveGame* SaveData = FoxGameMode->RetrieveInGameSaveData();
+		
+		// Early return if save data retrieval failed to prevent accessing a null pointer
+		if (SaveData == nullptr) return;
+
+		// Update the PlayerStartTag to the provided checkpoint tag so the player will spawn at this checkpoint when loading the save
+		SaveData->PlayerStartTag = CheckpointTag;
+
+		// Save the updated save data to disk, persisting the new checkpoint location for future game sessions
+		FoxGameMode->SaveInGameProgressData(SaveData);
 	}
 }
 

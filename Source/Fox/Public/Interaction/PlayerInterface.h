@@ -139,4 +139,8 @@ public:
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void HideMagicCircle();
+	
+	// Function to save the player's current progress at a checkpoint with the specified tag, this is overridden in FoxCharacter.h
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void SaveProgress(const FName& CheckpointTag);
 };

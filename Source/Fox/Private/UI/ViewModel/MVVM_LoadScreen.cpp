@@ -153,6 +153,14 @@ void UMVVM_LoadScreen::PlayButtonPressed()
 	// Store the selected slot's player start tag in the game instance so it persists during level travel and determines 
 	// which PlayerStart actor to spawn the player at in the loaded map
 	FoxGameInstance->PlayerStartTag = SelectedSlot->PlayerStartTag;
+	
+	// Store the selected slot's unique name identifier in the game instance so it persists across level transitions
+	// and can be used to identify and load the correct save file when the player continues their game
+	FoxGameInstance->LoadSlotName = SelectedSlot->GetLoadSlotName();
+
+	// Store the selected slot's numeric index in the game instance for quick identification of which save slot
+	// (0, 1, or 2) is being loaded, used alongside LoadSlotName for save game operations
+	FoxGameInstance->LoadSlotIndex = SelectedSlot->SlotIndex;
 
 	/*
 	 * Check if a valid slot is currently selected before attempting to load and travel to its associated map

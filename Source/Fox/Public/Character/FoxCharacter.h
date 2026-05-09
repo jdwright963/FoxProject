@@ -174,6 +174,9 @@ public:
 	 */
 	virtual void HideMagicCircle_Implementation() override;
 	
+	// Function to save the player's current progress at a checkpoint this function is declared in PlayerInterface.h and overriden here
+	virtual void SaveProgress_Implementation(const FName& CheckpointTag) override;
+	
 	/** end Player Interface */
 	
 	/** Combat Interface */

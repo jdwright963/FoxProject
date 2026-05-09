@@ -82,6 +82,39 @@ void AFoxGameModeBase::DeleteSlot(const FString& SlotName, int32 SlotIndex)
 	}
 }
 
+ULoadScreenSaveGame* AFoxGameModeBase::RetrieveInGameSaveData()
+{
+	// Cast the game instance to our custom UFoxGameInstance type to access save slot information that was set when the player traveled to this map
+	UFoxGameInstance* FoxGameInstance = Cast<UFoxGameInstance>(GetGameInstance());
+
+	// Retrieve the unique slot name identifier (e.g., "LoadSlot_0") from the game instance that was stored during map travel
+	const FString InGameLoadSlotName = FoxGameInstance->LoadSlotName;
+
+	// Retrieve the numeric slot index (0, 1, or 2) from the game instance that was stored during map travel
+	const int32 InGameLoadSlotIndex = FoxGameInstance->LoadSlotIndex;
+
+	// Load and return the save game data associated with the current gameplay session using the slot name and index from the game instance
+	return GetSaveSlotData(InGameLoadSlotName, InGameLoadSlotIndex);
+}
+
+void AFoxGameModeBase::SaveInGameProgressData(ULoadScreenSaveGame* SaveObject)
+{
+	// Cast the game instance to our custom UFoxGameInstance type to access the slot name and index that identify where to save the game data
+	UFoxGameInstance* FoxGameInstance = Cast<UFoxGameInstance>(GetGameInstance());
+
+	// Retrieve the unique slot name identifier (e.g., "LoadSlot_0") from the game instance that identifies which save file to write to
+	const FString InGameLoadSlotName = FoxGameInstance->LoadSlotName;
+	
+	// Retrieve the numeric slot index (0, 1, or 2) from the game instance that identifies which save slot to write to
+	const int32 InGameLoadSlotIndex = FoxGameInstance->LoadSlotIndex;
+	
+	// Update the game instance's PlayerStartTag with the one from the save object to ensure the correct spawn point is used when the player reloads the game
+	FoxGameInstance->PlayerStartTag = SaveObject->PlayerStartTag;
+
+	// Write the updated save game object to persistent storage at the specified slot name and index, preserving all progress data
+	UGameplayStatics::SaveGameToSlot(SaveObject, InGameLoadSlotName, InGameLoadSlotIndex);
+}
+
 void AFoxGameModeBase::TravelToMap(UMVVM_LoadSlot* Slot)
 {
 	// Retrieve the unique slot name identifier from the load slot view model (e.g., "LoadSlot_0", "LoadSlot_1", or "LoadSlot_2")

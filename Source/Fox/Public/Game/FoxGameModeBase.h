@@ -40,6 +40,12 @@ public:
 	// Deletes the save slot data from disk for the specified slot name and index (static method to allow deletion without an instance of this class)
 	static void DeleteSlot(const FString& SlotName, int32 SlotIndex);
 	
+	// Retrieves the current in-game save data from disk using the slot name and index stored in the game instance
+	ULoadScreenSaveGame* RetrieveInGameSaveData();
+
+	// Saves the current in-game progress data to disk using the slot name and index stored in the provided save object
+	void SaveInGameProgressData(ULoadScreenSaveGame* SaveObject);
+	
 	// Initiates level travel to the map associated with the provided save slot by looking up the map name in the Maps dictionary and opening the corresponding level
 	void TravelToMap(UMVVM_LoadSlot* Slot);
 
