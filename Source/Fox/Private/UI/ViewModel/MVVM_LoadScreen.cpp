@@ -44,6 +44,9 @@ void UMVVM_LoadScreen::InitializeLoadSlots()
 	
 	// Set the slot index to 2 to identify this as the third save slot
 	LoadSlot_2->SlotIndex = 2;
+	
+	// Update the NumLoadSlots property with the total number of registered load slots, broadcasting the count to bound UI elements
+	SetNumLoadSlots(LoadSlots.Num());
 }
 
 UMVVM_LoadSlot* UMVVM_LoadScreen::GetLoadSlotViewModelByIndex(int32 Index) const
@@ -180,4 +183,10 @@ void UMVVM_LoadScreen::LoadData()
 		// Assign the loaded map name from the save object to the view model to track which level/map this save is associated with
 		LoadSlot.Value->SetMapName(SaveObject->MapName);
 	}
+}
+
+void UMVVM_LoadScreen::SetNumLoadSlots(int32 InNumLoadSlots)
+{
+	// Update the NumLoadSlots property with the new value and automatically broadcast property changed notifications to bound UI elements via the MVVM framework
+	UE_MVVM_SET_PROPERTY_VALUE(NumLoadSlots, InNumLoadSlots);
 }

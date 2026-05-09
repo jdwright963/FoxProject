@@ -57,6 +57,12 @@ public:
 	
 	// Loads saved data from disk for all save slots and updates their view models with player names and slot statuses
 	void LoadData();
+	
+	// Sets the number of load slots displayed in the UI and triggers MVVM field change notification to update bound widgets
+	void SetNumLoadSlots(int32 InNumLoadSlots);
+
+	// Retrieves the current number of load slots configured for the load screen UI
+	int32 GetNumLoadSlots() const { return NumLoadSlots; }
 
 private:
 
@@ -79,4 +85,8 @@ private:
 	// The currently selected load slot view model, tracking which save slot the player has chosen for loading, deleting, or overwriting
 	UPROPERTY()
 	TObjectPtr<UMVVM_LoadSlot> SelectedSlot;
+	
+	// The configurable number of save slots displayed in the load screen UI, with MVVM field change notifications enabled for reactive UI updates
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Setter, Getter, meta = (AllowPrivateAccess = "true"))
+	int32 NumLoadSlots;
 };
