@@ -53,4 +53,38 @@ public:
 	// or contains existing save data (Taken)
 	UPROPERTY()
 	TEnumAsByte<ESaveSlotStatus> SaveSlotStatus = Vacant;
+	
+	/* Player */
+
+	// The player's current level, representing their overall progression and unlocking new abilities and stat increases
+	UPROPERTY()
+	int32 PlayerLevel = 0;
+
+	// The player's accumulated experience points, used to track progress toward leveling up
+	UPROPERTY()
+	int32 XP = 0;
+
+	// The number of unspent spell points available for the player to allocate toward unlocking or upgrading abilities
+	UPROPERTY()
+	int32 SpellPoints = 0;
+
+	// The number of unspent attribute points available for the player to allocate toward increasing their primary stats
+	UPROPERTY()
+	int32 AttributePoints = 0;
+
+	// The player's strength attribute value, typically affecting physical damage and melee combat effectiveness
+	UPROPERTY()
+	float Strength = 0;
+
+	// The player's intelligence attribute value, typically affecting spell power and magical damage effectiveness
+	UPROPERTY()
+	float Intelligence = 0;
+
+	// The player's resilience attribute value, typically affecting defense and damage reduction capabilities
+	UPROPERTY()
+	float Resilience = 0;
+
+	// The player's vigor attribute value, typically affecting maximum health and survivability
+	UPROPERTY()
+	float Vigor = 0;
 };

@@ -7,6 +7,7 @@
 #include "FoxGameplayTags.h"
 #include "NiagaraComponent.h"
 #include "AbilitySystem/FoxAbilitySystemComponent.h"
+#include "AbilitySystem/FoxAttributeSet.h"
 #include "AbilitySystem/Data/LevelUpInfo.h"
 #include "AbilitySystem/Debuff/DebuffNiagaraComponent.h"
 #include "Camera/CameraComponent.h"
@@ -804,6 +805,41 @@ void AFoxCharacter::SaveProgress_Implementation(const FName& CheckpointTag)
 
 		// Update the PlayerStartTag to the provided checkpoint tag so the player will spawn at this checkpoint when loading the save
 		SaveData->PlayerStartTag = CheckpointTag;
+		
+		/**
+		 * Retrieve and cast the PlayerState to AFoxPlayerState to access player progression data
+		 * 
+		 * Cast<AFoxPlayerState>(GetPlayerState()) safely casts the character's PlayerState to our custom class
+		 * This is necessary because progression data (level, XP, attribute points, spell points) is stored in
+		 * AFoxPlayerState, not in the base APlayerState class. The cast allows us to access these Fox-specific
+		 * properties for saving to disk.
+		 */
+		if (AFoxPlayerState* FoxPlayerState = Cast<AFoxPlayerState>(GetPlayerState()))
+		{
+			// Save the player's current level to the save game data so it persists across game sessions and can be restored when loading
+			SaveData->PlayerLevel = FoxPlayerState->GetPlayerLevel();
+
+			// Save the player's current total XP to the save game data so progression toward the next level persists across game sessions
+			SaveData->XP = FoxPlayerState->GetXP();
+
+			// Save the player's unspent attribute points to the save game data so they can continue upgrading primary attributes after loading
+			SaveData->AttributePoints = FoxPlayerState->GetAttributePoints();
+
+			// Save the player's unspent spell points to the save game data so they can continue unlocking abilities after loading
+			SaveData->SpellPoints = FoxPlayerState->GetSpellPoints();
+		}
+
+		// Retrieve the current Strength attribute value from the character's AttributeSet and save it to persist across game sessions
+		SaveData->Strength = UFoxAttributeSet::GetStrengthAttribute().GetNumericValue(GetAttributeSet());
+
+		// Retrieve the current Intelligence attribute value from the character's AttributeSet and save it to persist across game sessions
+		SaveData->Intelligence = UFoxAttributeSet::GetIntelligenceAttribute().GetNumericValue(GetAttributeSet());
+
+		// Retrieve the current Resilience attribute value from the character's AttributeSet and save it to persist across game sessions
+		SaveData->Resilience = UFoxAttributeSet::GetResilienceAttribute().GetNumericValue(GetAttributeSet());
+
+		// Retrieve the current Vigor attribute value from the character's AttributeSet and save it to persist across game sessions
+		SaveData->Vigor = UFoxAttributeSet::GetVigorAttribute().GetNumericValue(GetAttributeSet());
 
 		// Save the updated save data to disk, persisting the new checkpoint location for future game sessions
 		FoxGameMode->SaveInGameProgressData(SaveData);
