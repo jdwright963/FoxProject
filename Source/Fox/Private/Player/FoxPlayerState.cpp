@@ -97,6 +97,24 @@ void AFoxPlayerState::SetLevel(int32 InLevel)
 	OnLevelChangedDelegate.Broadcast(Level);
 }
 
+void AFoxPlayerState::SetAttributePoints(int32 InPoints)
+{
+	// Sets the player's current AttributePoints to the specified value (InPoints), replacing the previous AttributePoints value entirely.
+	AttributePoints = InPoints;
+
+	// Broadcasts the updated AttributePoints value to all listeners subscribed to OnAttributePointsChangedDelegate.
+	OnAttributePointsChangedDelegate.Broadcast(AttributePoints);
+}
+
+void AFoxPlayerState::SetSpellPoints(int32 InPoints)
+{
+	// Sets the player's current SpellPoints to the specified value (InPoints), replacing the previous SpellPoints value entirely.
+	SpellPoints = InPoints;
+
+	// Broadcasts the updated SpellPoints value to all listeners subscribed to OnSpellPointsChangedDelegate.
+	OnSpellPointsChangedDelegate.Broadcast(SpellPoints);
+}
+
 void AFoxPlayerState::OnRep_Level(int32 OldLevel)
 {
 	// This replication notification function is automatically called on clients when the Level variable changes on the server.

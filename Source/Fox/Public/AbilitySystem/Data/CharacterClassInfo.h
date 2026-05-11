@@ -112,6 +112,13 @@ public:
 	// (FCharacterClassDefaultInfo) the contents of this map are added in the editor
 	UPROPERTY(EditDefaultsOnly, Category = "Character Class Defaults")
 	TMap<ECharacterClass, FCharacterClassDefaultInfo> CharacterClassInformation;
+
+	// Gameplay effect to apply primary attributes using SetByCaller parameters instead of hardcoded values. Unlike
+	// the PrimaryAttributes in FCharacterClassDefaultInfo which are class-specific with fixed values, this effect
+	// allows dynamic attribute assignment at runtime by setting magnitude values through SetByCaller data tags.
+	// The value of this variagble is set in the editor
+	UPROPERTY(EditDefaultsOnly, Category = "Common Class Defaults")
+	TSubclassOf<UGameplayEffect> PrimaryAttributes_SetByCaller;
 	
 	// Gameplay effect to apply Secondary attributes to enemy characters. This is shared by all classes. Placing this in
 	// the FCharacterClassDefaultInfo struct will make it specific to each class

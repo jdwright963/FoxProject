@@ -174,6 +174,7 @@ public:
 	 */
 	virtual void HideMagicCircle_Implementation() override;
 	
+	
 	// Function to save the player's current progress at a checkpoint this function is declared in PlayerInterface.h and overriden here
 	virtual void SaveProgress_Implementation(const FName& CheckpointTag) override;
 	
@@ -215,6 +216,16 @@ public:
 	 * is replicated from the server. It enables or disables the fire particle effect depending on the value of bIsBurned
 	 */
 	virtual void OnRep_Burned() override;
+	
+	
+	/**
+	 * LoadProgress - Load the player's saved progress from a checkpoint
+	 * 
+	 * This function is called to restore the player's character state from a previously saved checkpoint.
+	 * It retrieves saved data (such as position, attributes, abilities, level, XP, etc.) and applies it
+	 * to the current character instance, effectively restoring the player to their last checkpoint state.
+	 */
+	void LoadProgress();
 	
 private:
 	

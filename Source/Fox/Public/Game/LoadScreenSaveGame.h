@@ -54,6 +54,11 @@ public:
 	UPROPERTY()
 	TEnumAsByte<ESaveSlotStatus> SaveSlotStatus = Vacant;
 	
+	// Indicates whether this is the player's first time loading into the game world from this save slot, used to 
+	// determine if initial spawn logic should be triggered
+	UPROPERTY()
+	bool bFirstTimeLoadIn = true;
+	
 	/* Player */
 
 	// The player's current level, representing their overall progression and unlocking new abilities and stat increases

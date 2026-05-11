@@ -112,6 +112,12 @@ public:
 	// Directly sets the player's level to the specified value (replacing previous value) and broadcasts the change via OnLevelChangedDelegate.
 	void SetLevel(int32 InLevel);
 	
+	// Directly sets the player's attribute points to the specified value (replacing previous value) and broadcasts the change via OnAttributePointsChangedDelegate.
+	void SetAttributePoints(int32 InPoints);
+
+	// Directly sets the player's spell points to the specified value (replacing previous value) and broadcasts the change via OnSpellPointsChangedDelegate.
+	void SetSpellPoints(int32 InPoints);
+	
 protected:
 	
 	// These variables (AbilitySystemComponent and AttributeSet) are present in both AFoxPlayerState and 
