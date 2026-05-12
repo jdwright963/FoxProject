@@ -51,35 +51,35 @@ void UOverlayWidgetController::BindCallbacksToDependencies()
 	
 	/*
 	 * Use the getter function that this class inherits to get the FoxPlayerState.
-	 * Bind a lambda callback to the OnLevelChangedDelegate multicast delegate declared in FoxPlayerState.h
+	 * Then, bind a lambda callback to the OnLevelChangedDelegate multicast delegate.
 	 * 
-	 * AddLambda binds an inline lambda function to a delegate, providing a lightweight alternative
-	 * to creating a separate named member function when the callback logic is simple.
+	 * AddLambda binds an inline lambda function to this delegate, providing a lightweight way to handle
+	 * level changes without creating a separate named member function.
 	 * 
 	 * Lambda capture list [this]:
 	 *   - Captures the current UOverlayWidgetController instance, allowing access to member variables
-	 *	 like OnPlayerLevelChangedDelegate inside the lambda
+	 *     like OnPlayerLevelChangedDelegate inside the lambda
 	 * 
-	 * Lambda parameter (int32 NewLevel):
-	 *   - When AFoxPlayerState's level changes (via AddToPlayerLevel() or LevelUp()), the PlayerState
-	 *	 broadcasts the new level value through OnLevelChangedDelegate, which automatically invokes
-	 *	 this lambda with the new level as a parameter
+	 * Lambda parameters (int32 NewLevel, bool bLevelUp):
+	 *   - NewLevel: The new level value that the player has reached
+	 *   - bLevelUp: Boolean flag indicating whether this is an actual level-up event (true) or just
+	 *     an initial level setting/synchronization (false)
+	 * 
+	 * When AFoxPlayerState's level changes (via AddToLevel() or SetLevel()), the PlayerState broadcasts
+	 * the new level and level-up status through OnLevelChangedDelegate, which automatically invokes this
+	 * lambda function with the level data as parameters.
 	 * 
 	 * Lambda body:
-	 *   - Simply forwards the NewLevel value to a delegate declared in this class (OverlayWidgetController.h)
-	 *   OnPlayerLevelChangedDelegate, which UI widgets (such as level display widgets) bind to in order to receive 
-	 *   level updates
-	 *   - This acts as a pass-through/relay: PlayerState broadcasts level changes, we receive them
-	 *	 via this lambda, and immediately re-broadcast them to our UI widgets
-	 * 
-	 * This pattern allows the widget controller to act as an intermediary layer between game logic
-	 * (PlayerState) and UI (widgets), decoupling them and allowing the widget controller to
-	 * potentially add additional logic or filtering before broadcasting to UI if needed in the future.
+	 *   - Immediately re-broadcasts the level change information through OnPlayerLevelChangedDelegate
+	 *   - This forwards the level change from PlayerState to UI widgets that bind to OnPlayerLevelChangedDelegate
+	 *   - Acts as a relay: PlayerState broadcasts level changes, we receive them via this lambda,
+	 *     and immediately re-broadcast them to UI widgets for display updates (such as level-up animations,
+	 *     level number displays, or attribute point notifications)
 	 */
 	GetFoxPS()->OnLevelChangedDelegate.AddLambda(
-		[this](int32 NewLevel)
+		[this](int32 NewLevel, bool bLevelUp)
 		{
-			OnPlayerLevelChangedDelegate.Broadcast(NewLevel);
+			OnPlayerLevelChangedDelegate.Broadcast(NewLevel, bLevelUp);
 		}
 	);
 	

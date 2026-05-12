@@ -9,6 +9,7 @@
 #include "FoxGameplayTags.h"
 #include "Engine/OverlapResult.h"
 #include "Game/FoxGameModeBase.h"
+#include "Game/LoadScreenSaveGame.h"
 #include "Interaction/CombatInterface.h"
 #include "Kismet/GameplayStatics.h"
 #include "Player/FoxPlayerState.h"
@@ -162,6 +163,184 @@ void UFoxAbilitySystemLibrary::InitializeDefaultAttributes(const UObject* WorldC
 	
 	// Similar to the above just for the vital attributes effect.
 	const FGameplayEffectSpecHandle VitalAttributesSpecHandle = ASC->MakeOutgoingSpec(CharacterClassInfo->VitalAttributes, Level, VitalAttributesContextHandle);
+	ASC->ApplyGameplayEffectSpecToSelf(*VitalAttributesSpecHandle.Data.Get());
+}
+
+void UFoxAbilitySystemLibrary::InitializeDefaultAttributesFromSaveData(const UObject* WorldContextObject,
+	UAbilitySystemComponent* ASC, ULoadScreenSaveGame* SaveGame)
+{
+	/*
+	 * Retrieve the UCharacterClassInfo data asset by calling GetCharacterClassInfo, which internally gets the game
+	 * mode and accesses the CharacterClassInfo data asset stored on it. This data asset contains gameplay effect
+	 * classes for initializing attributes, including the PrimaryAttributes_SetByCaller effect that will be used
+	 * below to restore saved attribute values.
+	 */
+	UCharacterClassInfo* CharacterClassInfo = GetCharacterClassInfo(WorldContextObject);
+
+	/*
+	 * Check if CharacterClassInfo is null and return early if so to prevent null pointer access. This can occur if
+	 * the game mode doesn't exist, isn't of type AFoxGameModeBase, or doesn't have a CharacterClassInfo data asset
+	 * assigned, ensuring graceful failure without crashes.
+	 */
+	if (CharacterClassInfo == nullptr) return;
+
+	/*
+	 * Get a const reference to the singleton instance of FFoxGameplayTags using the static Get() function. This
+	 * provides access to all gameplay tags used throughout the project, which will be needed below to assign
+	 * SetByCaller magnitudes for each primary attribute (Strength, Intelligence, Resilience, Vigor).
+	 */
+	const FFoxGameplayTags& GameplayTags = FFoxGameplayTags::Get();
+
+	/*
+	 * Retrieve the avatar actor (the physical representation in the world) from the ability system component. This
+	 * actor will be added to the effect context as the source object, identifying the character whose attributes
+	 * are being initialized from save data.
+	 */
+	const AActor* SourceAvatarActor = ASC->GetAvatarActor();
+
+	/*
+	 * Create a new gameplay effect context and context handle using the ability system component's MakeEffectContext() function.
+	 * This context will store metadata about the effect application, including the source actor, and will be
+	 * attached to the gameplay effect spec created below.
+	 */
+	FGameplayEffectContextHandle EffectContexthandle = ASC->MakeEffectContext();
+
+	/*
+	 * Add the source avatar actor to the effect context as the source object. This establishes the actor whose
+	 * attributes are being restored as the originator of the effect, making this information available throughout
+	 * the attribute initialization pipeline.
+	 */
+	EffectContexthandle.AddSourceObject(SourceAvatarActor);
+	
+	/*
+	 * Create an outgoing gameplay effect spec for the primary attributes SetByCaller effect using level 1.f and
+	 * the primary attributes context we prepared. PrimaryAttributes_SetByCaller is a specialized effect class
+	 * designed to restore primary attribute values (Strength, Intelligence, Resilience, Vigor) from save data
+	 * using SetByCaller magnitudes rather than fixed modifiers. Unlike the default InitializeDefaultAttributes
+	 * function which uses a class-based primary attributes effect with fixed values, this effect reads
+	 * SetByCaller magnitudes that will be assigned below using AssignTagSetByCallerMagnitude for each primary
+	 * attribute tag. The level parameter is set to 1.f since attribute restoration should apply the exact saved
+	 * values without any level-based scaling or modification.
+	 */
+	const FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(CharacterClassInfo->PrimaryAttributes_SetByCaller, 1.f, EffectContexthandle);
+
+	/*
+	 * Assign the saved Strength attribute value from the SaveGame object to the gameplay effect spec using the
+	 * Attributes.Primary.Strength gameplay tag. This SetByCaller magnitude will be read by the effect when applied
+	 * to restore the character's Strength attribute to its saved value.
+	 */
+	UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(SpecHandle, GameplayTags.Attributes_Primary_Strength, SaveGame->Strength);
+
+	/*
+	 * Assign the saved Intelligence attribute value from the SaveGame object to the gameplay effect spec using the
+	 * Attributes.Primary.Intelligence gameplay tag. This SetByCaller magnitude will be read by the effect when
+	 * applied to restore the character's Intelligence attribute to its saved value.
+	 */
+	UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(SpecHandle, GameplayTags.Attributes_Primary_Intelligence, SaveGame->Intelligence);
+
+	/*
+	 * Assign the saved Resilience attribute value from the SaveGame object to the gameplay effect spec using the
+	 * Attributes.Primary.Resilience gameplay tag. This SetByCaller magnitude will be read by the effect when
+	 * applied to restore the character's Resilience attribute to its saved value.
+	 */
+	UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(SpecHandle, GameplayTags.Attributes_Primary_Resilience, SaveGame->Resilience);
+	
+	/*
+	 * Assign the saved Vigor attribute value from the SaveGame object to the gameplay effect spec using the
+	 * Attributes.Primary.Vigor gameplay tag. This SetByCaller magnitude will be read by the effect when applied
+	 * to restore the character's Vigor attribute to its saved value. Vigor is the fourth and final primary
+	 * attribute that needs to be restored, completing the primary attributes restoration process.
+	 */
+	UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(SpecHandle, GameplayTags.Attributes_Primary_Vigor, SaveGame->Vigor);
+
+	/*
+	 * Apply the primary attributes gameplay effect spec to the ability system component by calling
+	 * ApplyGameplayEffectSpecToSelf(). The spec contains all four primary attribute values (Strength, Intelligence,
+	 * Resilience, Vigor) assigned via SetByCaller magnitudes above, which will now be written to the character's
+	 * actual attribute values. SpecHandle.Data is a TSharedPtr<FGameplayEffectSpec>, and the dereference operator
+	 * '*' retrieves the raw pointer and dereferences it to pass the FGameplayEffectSpec reference required by the
+	 * function. This restores the character's base primary attributes to their saved state, which will then be
+	 * used to calculate secondary and vital attributes in the subsequent steps.
+	 */
+	ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
+
+	/*
+	 * Create a new gameplay effect context and context handle for secondary attributes using the ability system component's
+	 * MakeEffectContext() function. Secondary attributes (like Armor, Block Chance, Critical Hit Chance, etc.)
+	 * are calculated based on primary attributes and need to be initialized after primary attributes are restored.
+	 * This context will store metadata about the secondary attributes effect application, including the source
+	 * actor, and will be attached to the gameplay effect spec created below.
+	 */
+	FGameplayEffectContextHandle SecondaryAttributesContextHandle = ASC->MakeEffectContext();
+
+	/*
+	 * Add the source avatar actor to the secondary attributes effect context as the source object. This establishes
+	 * the character whose secondary attributes are being initialized as the originator of the effect, making this
+	 * information available throughout the secondary attribute initialization pipeline. The source actor reference
+	 * allows the gameplay effect's modifiers and execution calculations to access the character's primary attributes
+	 * (which were just restored) to compute the correct secondary attribute values.
+	 */
+	SecondaryAttributesContextHandle.AddSourceObject(SourceAvatarActor);
+
+	/*
+	 * Create an outgoing gameplay effect spec for the secondary attributes infinite effect using level 1.f and
+	 * the secondary attributes context we prepared. SecondaryAttributes_Infinite is a specialized effect class
+	 * designed to continuously recalculate secondary attributes based on primary attribute changes (hence "Infinite"
+	 * duration). This effect reads the character's primary attributes (Strength, Intelligence, etc.) and uses
+	 * attribute-based modifiers or execution calculations to derive secondary attribute values (Armor from Resilience,
+	 * Critical Hit Chance from Intelligence, etc.). The level parameter is set to 1.f since secondary attribute
+	 * calculations are based on primary attributes, not effect level.
+	 */
+	const FGameplayEffectSpecHandle SecondaryAttributesSpecHandle = ASC->MakeOutgoingSpec(CharacterClassInfo->SecondaryAttributes_Infinite, 1.f, SecondaryAttributesContextHandle);
+
+	/*
+	 * Apply the secondary attributes gameplay effect spec to the ability system component to initialize all
+	 * calculated secondary attributes based on the restored primary attributes. ApplyGameplayEffectSpecToSelf
+	 * processes the spec by evaluating all attribute-based modifiers that derive secondary attributes from primary
+	 * attributes (e.g., Armor = Resilience * 5, Critical Hit Chance = Intelligence * 0.5, etc.). The spec must
+	 * be dereferenced from the handle: SecondaryAttributesSpecHandle.Data is a TSharedPtr<FGameplayEffectSpec>,
+	 * calling Get() returns the raw FGameplayEffectSpec pointer, and using the dereference operator '*' converts
+	 * that pointer to a reference. This ensures all combat-related derived attributes are correctly calculated
+	 * and applied after loading the save data.
+	 */
+	ASC->ApplyGameplayEffectSpecToSelf(*SecondaryAttributesSpecHandle.Data.Get());
+
+	/*
+	 * Create a new gameplay effect context and context handle for vital attributes using the ability system component's
+	 * MakeEffectContext() function. Vital attributes (Health and Mana) represent the character's current resource
+	 * pools and need to be initialized after secondary attributes are set up. This context will store metadata
+	 * about the vital attributes effect application and will be attached to the gameplay effect spec created below.
+	 */
+	FGameplayEffectContextHandle VitalAttributesContextHandle = ASC->MakeEffectContext();
+
+	/*
+	 * Add the source avatar actor to the vital attributes effect context as the source object. This establishes
+	 * the character whose vital attributes are being initialized as the originator of the effect, making this
+	 * information available throughout the vital attribute initialization pipeline. The source actor reference
+	 * allows the gameplay effect to properly identify the character receiving the vital attribute setup.
+	 */
+	VitalAttributesContextHandle.AddSourceObject(SourceAvatarActor);
+
+	/*
+	 * Create an outgoing gameplay effect spec for the vital attributes effect using level 1.f and the vital
+	 * attributes context we prepared. VitalAttributes is an effect class designed to set the character's maximum
+	 * Health and Mana values and fill them to their maximum.
+	 * This effect typically uses instant modifiers to set MaxHealth and MaxMana based on primary attributes
+	 * (MaxHealth from Vigor, MaxMana from Intelligence), and may also restore or fill the current Health and Mana
+	 * values. The level parameter is set to 1.f since vital attribute calculations are based on primary attributes.
+	 */
+	const FGameplayEffectSpecHandle VitalAttributesSpecHandle = ASC->MakeOutgoingSpec(CharacterClassInfo->VitalAttributes, 1.f, VitalAttributesContextHandle);
+
+	/*
+	 * Apply the vital attributes gameplay effect spec to the ability system component to initialize the character's
+	 * vital attributes (Health and Mana). ApplyGameplayEffectSpecToSelf processes the spec by evaluating modifiers
+	 * that set MaxHealth and MaxMana based on primary attributes, and may also fill or restore current Health and
+	 * Mana values. The spec must be dereferenced from the handle: VitalAttributesSpecHandle.Data is a
+	 * TSharedPtr<FGameplayEffectSpec>, calling Get() returns the raw pointer, and using the dereference operator
+	 * '*' converts it to a reference. This completes the attribute restoration process from save data by ensuring
+	 * the character has valid resource pools (Health/Mana) after their primary and secondary attributes have been
+	 * restored.
+	 */
 	ASC->ApplyGameplayEffectSpecToSelf(*VitalAttributesSpecHandle.Data.Get());
 }
 

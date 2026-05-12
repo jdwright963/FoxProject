@@ -178,6 +178,10 @@ struct FOnAttributeChangeData;
 // The above comments need updated. We used to have a delegate for each attribute now we have one delegate for all.
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAttributeChangedSignature, float, NewValue);
 
+// Delegate signature for broadcasting player level changes with the new level value and a bool indicating whether it 
+// the level up was earned through gameplay progression or if the level was set directly as a result of loading from saved data.
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLevelChangedSignature, int32, NewLevel, bool, bLevelUp);
+
 /**
  * Dynamic multicast delegate for broadcasting UI message widget data to listeners.
  * 
@@ -374,12 +378,13 @@ public:
 	
 	/**
 	 * Delegate that broadcasts player level changes to Blueprint UI systems.
-	 * Uses FOnPlayerStatChangedSignature which broadcasts a single int32 value.
-	 * Any function binding to this delegate must match: void FunctionName(int32 NewValue)
+	 * Uses FOnLevelChangedSignature which broadcasts a int32 value and a boolean indicating if the level change was 
+	 * earned through gameplay. Any function binding to this delegate must match: void FunctionName(int32 NewValue, bool bLevelUp)
 	 * The NewValue parameter represents the new player level (e.g., 1, 2, 3, etc.).
+	 * The bLevelUp parameter indicates whether the level change was earned through gameplay progression (true) or set directly (false).
 	*/
 	UPROPERTY(BlueprintAssignable, Category="GAS|Level")
-	FOnPlayerStatChangedSignature OnPlayerLevelChangedDelegate;
+	FOnLevelChangedSignature OnPlayerLevelChangedDelegate;
 	
 protected:
 	

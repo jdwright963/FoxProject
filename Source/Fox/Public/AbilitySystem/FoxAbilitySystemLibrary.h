@@ -8,6 +8,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "FoxAbilitySystemLibrary.generated.h"
 
+class ULoadScreenSaveGame;
 struct FDamageEffectParams;
 class UAbilityInfo;
 struct FGameplayEffectContextHandle;
@@ -71,6 +72,18 @@ public:
 	// Function that will initialize default attributes for enemies based on their class and level
 	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|CharacterClassDefaults")
 	static void InitializeDefaultAttributes(const UObject* WorldContextObject, ECharacterClass CharacterClass, float Level, UAbilitySystemComponent* ASC);
+	
+	// Function to initialize character attributes from saved game data instead of using default class-based values
+	// This is used when loading a saved game to restore the player character's attributes (Health, Mana, Strength, etc.)
+	// to their previously saved state, allowing for persistent character progression across game sessions
+	// Unlike InitializeDefaultAttributes which initializes based on class and level, this function reads attribute
+	// values directly from the save game object and applies them to the character's Ability System Component
+	// 
+	// WorldContextObject: Required context object to access the world and retrieve game mode data
+	// ASC: Pointer to the Ability System Component that will have its attributes initialized from save data
+	// SaveGame: Pointer to the ULoadScreenSaveGame object containing the saved attribute values to restor
+	UFUNCTION(BlueprintCallable, Category="AuraAbilitySystemLibrary|CharacterClassDefaults")
+	static void InitializeDefaultAttributesFromSaveData(const UObject* WorldContextObject, UAbilitySystemComponent* ASC, ULoadScreenSaveGame* SaveGame);
 	
 	// Function to initialize enemy gameplay abilities
 	UFUNCTION(BlueprintCallable, Category = "FoxAbilitySystemLibrary|CharacterClassDefaults")

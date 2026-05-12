@@ -125,6 +125,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Common Class Defaults")
 	TSubclassOf<UGameplayEffect> SecondaryAttributes;
 	
+	// Gameplay effect to apply Secondary attributes with infinite duration to player characters. Unlike the regular
+	// SecondaryAttributes effect which has instant or limited duration, this effect persists indefinitely and is used
+	// for permanent attribute modifiers. This is shared by all classes
+	UPROPERTY(EditDefaultsOnly, Category = "Common Class Defaults")
+	TSubclassOf<UGameplayEffect> SecondaryAttributes_Infinite;
+	
 	// Gameplay effect to apply Vital attributes to enemy characters. This is shared by all classes
 	UPROPERTY(EditDefaultsOnly, Category = "Common Class Defaults")
 	TSubclassOf<UGameplayEffect> VitalAttributes;

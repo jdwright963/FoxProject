@@ -76,7 +76,9 @@ void AFoxPlayerState::AddToLevel(int32 InLevel)
 	Level += InLevel;
 
 	// Broadcasts the updated Level value to all listeners subscribed to OnLevelChangedDelegate.
-	OnLevelChangedDelegate.Broadcast(Level);
+	// The second parameter (true) indicates this level change was earned through normal gameplay progression
+	// (e.g., gaining enough XP to level up), which may trigger special UI feedback, rewards, or sound effects.
+	OnLevelChangedDelegate.Broadcast(Level, true);
 }
 
 void AFoxPlayerState::SetXP(int32 InXP)
@@ -94,7 +96,9 @@ void AFoxPlayerState::SetLevel(int32 InLevel)
 	Level = InLevel;
 
 	// Broadcasts the updated Level value to all listeners subscribed to OnLevelChangedDelegate.
-	OnLevelChangedDelegate.Broadcast(Level);
+	// The second parameter (false) indicates this level change was set directly (e.g., from loading a save)
+	// rather than earned through normal gameplay progression, which may affect UI feedback or reward handling.
+	OnLevelChangedDelegate.Broadcast(Level, false);
 }
 
 void AFoxPlayerState::SetAttributePoints(int32 InPoints)
@@ -118,9 +122,10 @@ void AFoxPlayerState::SetSpellPoints(int32 InPoints)
 void AFoxPlayerState::OnRep_Level(int32 OldLevel)
 {
 	// This replication notification function is automatically called on clients when the Level variable changes on the server.
-	// It broadcasts the new Level value to all listeners subscribed to OnLevelChangedDelegate, ensuring UI and gameplay systems
-	// are updated in response to the server-replicated Level change.
-	OnLevelChangedDelegate.Broadcast(Level);
+	// It broadcasts the new Level value to all listeners subscribed to OnLevelChangedDelegate. The second parameter (true)
+	// indicates this level change was replicated from the server due to normal gameplay progression, ensuring UI and gameplay
+	// systems are updated with proper feedback for earned level-ups.
+	OnLevelChangedDelegate.Broadcast(Level, true);
 }
 
 void AFoxPlayerState::OnRep_XP(int32 OldXP)

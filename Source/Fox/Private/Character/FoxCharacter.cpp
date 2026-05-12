@@ -7,6 +7,7 @@
 #include "FoxGameplayTags.h"
 #include "NiagaraComponent.h"
 #include "AbilitySystem/FoxAbilitySystemComponent.h"
+#include "AbilitySystem/FoxAbilitySystemLibrary.h"
 #include "AbilitySystem/FoxAttributeSet.h"
 #include "AbilitySystem/Data/LevelUpInfo.h"
 #include "AbilitySystem/Debuff/DebuffNiagaraComponent.h"
@@ -253,10 +254,6 @@ void AFoxCharacter::PossessedBy(AController* NewController)
 	// Load the player's saved progression data (level, XP, attributes, spell points) from disk and restore character 
 	// state based on whether this is a new game or a loaded save
 	LoadProgress();
-	
-	// This function calls the function in UFoxAbilitySystemComponent that grants the abilities to the owner of the ASC
-	// passing it the StartupAbilities TSubclassOf TArray defined in AFoxCharacterBase
-	AddCharacterAbilities();
 }
 
 void AFoxCharacter::LoadProgress()
@@ -273,24 +270,6 @@ void AFoxCharacter::LoadProgress()
 		// Early return if save data retrieval failed to prevent accessing a null pointer
 		if (SaveData == nullptr) return;
 		
-		 // Cast<AFoxPlayerState>(GetPlayerState()) safely casts the character's PlayerState to our custom class
-		 // This allows us to access Fox-specific progression data (level, XP, attribute points, spell points)
-		 // The if statement only executes the block if the cast succeeds (returns non-nullptr)
-		if (AFoxPlayerState* FoxPlayerState = Cast<AFoxPlayerState>(GetPlayerState()))
-		{
-			// Restore the player's level from the save data to the PlayerState, ensuring progression persists across game sessions
-			FoxPlayerState->SetLevel(SaveData->PlayerLevel);
-
-			// Restore the player's total accumulated experience points from the save data to the PlayerState
-			FoxPlayerState->SetXP(SaveData->XP);
-
-			// Restore the player's unspent attribute points from the save data, allowing them to continue upgrading primary attributes after loading
-			FoxPlayerState->SetAttributePoints(SaveData->AttributePoints);
-
-			// Restore the player's unspent spell points from the save data, allowing them to continue unlocking abilities after loading
-			FoxPlayerState->SetSpellPoints(SaveData->SpellPoints);
-		}
-
 		/**
 		 * Check if this is the player's first time loading into the game world
 		 * 
@@ -311,7 +290,50 @@ void AFoxCharacter::LoadProgress()
 		}
 		else
 		{
+			//TODO: Load in Abilities from disk
 			
+			// Cast<AFoxPlayerState>(GetPlayerState()) safely casts the character's PlayerState to our custom class
+			// This allows us to access Fox-specific progression data (level, XP, attribute points, spell points)
+			// The if statement only executes the block if the cast succeeds (returns non-nullptr)
+			if (AFoxPlayerState* FoxPlayerState = Cast<AFoxPlayerState>(GetPlayerState()))
+			{
+				// Restore the player's level from the save data to the PlayerState, ensuring progression persists across game sessions
+				FoxPlayerState->SetLevel(SaveData->PlayerLevel);
+
+				// Restore the player's total accumulated experience points from the save data to the PlayerState
+				FoxPlayerState->SetXP(SaveData->XP);
+
+				// Restore the player's unspent attribute points from the save data, allowing them to continue upgrading primary attributes after loading
+				FoxPlayerState->SetAttributePoints(SaveData->AttributePoints);
+
+				// Restore the player's unspent spell points from the save data, allowing them to continue unlocking abilities after loading
+				FoxPlayerState->SetSpellPoints(SaveData->SpellPoints);
+			}
+			
+			/**
+			 * Restore the character's primary attribute values from the save data
+			 * 
+			 * InitializeDefaultAttributesFromSaveData() is a static helper function that:
+			 * - Creates a gameplay effect to set attribute base values (Strength, Intelligence, Resilience, Vigor)
+			 * - Applies the effect to the character's Ability System Component
+			 * - Uses saved attribute values from the save data instead of default CharacterClassInfo values
+			 * 
+			 * Parameters:
+			 * - this: The character actor that owns the attributes being restored
+			 * - AbilitySystemComponent: The ASC that manages the character's attributes through gameplay effects
+			 * - SaveData: Contains the saved primary attribute values (Strength, Intelligence, Resilience, Vigor)
+			 * 
+			 * Why this is necessary:
+			 * - Primary attributes are stored as gameplay effect modifiers on the ASC
+			 * - They must be reapplied through a gameplay effect to restore properly
+			 * - Simply setting attribute values directly would bypass the GAS framework
+			 * - This ensures attribute changes trigger all proper callbacks and UI updates
+			 * 
+			 * Note: This only restores PRIMARY attributes (Strength, Intelligence, Resilience, Vigor)
+			 * Secondary attributes (MaxHealth, MaxMana, etc.) are automatically recalculated
+			 * from primary attributes through attribute set calculations
+			 */
+			UFoxAbilitySystemLibrary::InitializeDefaultAttributesFromSaveData(this, AbilitySystemComponent, SaveData);
 		}
 	}
 }

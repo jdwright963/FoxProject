@@ -19,6 +19,13 @@ class UAttributeSet;
 // The delegate is used to notify UI elements and gameplay systems about stat changes
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerStatChanged, int32 /*StatValue*/)
 
+// Declares a multicast delegate type named FOnLevelChanged that can broadcast to multiple listeners.
+// This delegate takes two parameters: an int32 value representing the new level, and a bool indicating
+// whether this change represents a level-up event (true) or a the level is being set during loading from a checkpoint (false).
+// Multiple objects can bind to this delegate to be notified when the player's level changes and respond
+// differently based on whether the player leveled up or had their level changed in another way.
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLevelChanged, int32 /*StatValue*/, bool /*bLevelUp*/)
+
 /**
  * 
  */
@@ -61,10 +68,11 @@ public:
 	// XP changes, receiving the new XP value as a parameter.
 	FOnPlayerStatChanged OnXPChangedDelegate;
 
-	// Multicast delegate that broadcasts Level change events to subscribed listeners. Other systems (such as widget controllers)
-	// can bind functions to this delegate to be automatically notified whenever the player's
-	// Level changes, receiving the new Level value as a parameter.
-	FOnPlayerStatChanged OnLevelChangedDelegate;
+	// Multicast delegate that broadcasts level change events to subscribed listeners. Other systems (such as widget controllers)
+	// can bind functions to this delegate to be automatically notified whenever the player's level changes, receiving both the
+	// new level value and a boolean indicating whether this is a level-up event (true) or a level being set from loading a
+	// checkpoint (false) as parameters. This allows systems to respond differently to natural level progression versus loaded states.
+	FOnLevelChanged OnLevelChangedDelegate;
 	
 	// Multicast delegate that broadcasts attribute points change events to subscribed listeners. Other systems (such as 
 	// AttributeMenuWidgetController) can bind functions to this delegate to be automatically notified whenever the player's
@@ -157,9 +165,9 @@ private:
 	// The player's current experience points (XP). This value is replicated from the server to all clients.
 	// When the server changes this value, the OnRep_XP function is automatically called on
 	// clients to handle the replication notification and broadcast the change via OnXPChangedDelegate.
-	// Initialized to 1 as the starting XP for new players.
+	// Initialized to 0 as the starting XP for new players.
 	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_XP)
-	int32 XP = 1;
+	int32 XP = 0;
 	
 	// The player's current attribute points available for spending. These points are used to upgrade
 	// primary attributes (Strength, Intelligence, Resilience, Vigor) through the attribute menu UI.
