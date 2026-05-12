@@ -4,6 +4,7 @@
 #include "AbilitySystem/Passive/PassiveNiagaraComponent.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
+#include "FoxGameplayTags.h"
 #include "AbilitySystem/FoxAbilitySystemComponent.h"
 #include "Interaction/CombatInterface.h"
 
@@ -27,6 +28,10 @@ void UPassiveNiagaraComponent::BeginPlay()
 		// delegate to receive notifications when passive abilities are activated or deactivated. The callback function
 		// will be called whenever this delegate is broadcasted
 		FoxASC->ActivatePassiveEffect.AddUObject(this, &UPassiveNiagaraComponent::OnPassiveActivate);
+			
+		// Immediately check if the passive ability associated with this component is already equipped and activate
+		// the Niagara effect if it is, ensuring the visual effect is shown without waiting for a passive activation event
+		ActivateIfEquipped(FoxASC);
 	}
 	// If the AbilitySystemComponent is not yet available, check if the owner implements the CombatInterface which 
 	// provides a delegate for late ASC registration notifications
@@ -46,6 +51,10 @@ void UPassiveNiagaraComponent::BeginPlay()
 				// delegate to receive notifications when passive abilities are activated or deactivated. The callback function
 				// will be called whenever this delegate is broadcasted
 				FoxASC->ActivatePassiveEffect.AddUObject(this, &UPassiveNiagaraComponent::OnPassiveActivate);
+				
+				// Immediately check if the passive ability associated with this component is already equipped and activate
+				// the Niagara effect if it is, ensuring the visual effect is shown without waiting for a passive activation event
+				ActivateIfEquipped(FoxASC);
 			}
 		});
 	}
@@ -72,6 +81,23 @@ void UPassiveNiagaraComponent::OnPassiveActivate(const FGameplayTag& AbilityTag,
 			// Deactivate the Niagara particle system to stop the visual effect when the passive ability is no longer active
 			// This function is inherited from the parent class
 			Deactivate();
+		}
+	}
+}
+
+void UPassiveNiagaraComponent::ActivateIfEquipped(UFoxAbilitySystemComponent* FoxASC)
+{
+	// Cache the startup abilities given flag to determine if the owner's initial abilities have been granted yet
+	const bool bStartupAbilitiesGiven = FoxASC->bStartupAbilitiesGiven;
+	
+	// Only proceed with activation check if startup abilities have been given to avoid activating before abilities are initialized
+	if (bStartupAbilitiesGiven)
+	{
+		// Check if the passive spell associated with this component currently has "Equipped" status in the ability system
+		if (FoxASC->GetStatusFromAbilityTag(PassiveSpellTag) == FFoxGameplayTags::Get().Abilities_Status_Equipped)
+		{
+			// Activate the Niagara particle system since the passive ability is equipped and should display its visual effect
+			Activate();
 		}
 	}
 }

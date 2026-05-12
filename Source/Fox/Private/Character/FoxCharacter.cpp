@@ -9,6 +9,7 @@
 #include "AbilitySystem/FoxAbilitySystemComponent.h"
 #include "AbilitySystem/FoxAbilitySystemLibrary.h"
 #include "AbilitySystem/FoxAttributeSet.h"
+#include "AbilitySystem/Data/AbilityInfo.h"
 #include "AbilitySystem/Data/LevelUpInfo.h"
 #include "AbilitySystem/Debuff/DebuffNiagaraComponent.h"
 #include "Camera/CameraComponent.h"
@@ -290,7 +291,33 @@ void AFoxCharacter::LoadProgress()
 		}
 		else
 		{
-			//TODO: Load in Abilities from disk
+			/**
+			 * Cast the Ability System Component to UFoxAbilitySystemComponent and perform null-check
+			 * 
+			 * Cast<UFoxAbilitySystemComponent>(...) safely casts the base UAbilitySystemComponent pointer to our
+			 * custom UFoxAbilitySystemComponent subclass, which contains Fox-specific ability management functions
+			 * like AddCharacterAbilitiesFromSaveData() that are required to restore abilities from save data.
+			 * 
+			 * The if statement only executes the block if the cast succeeds (returns non-nullptr), ensuring we
+			 * only attempt to restore abilities if we have the correct ASC type with the necessary functions.
+			 */
+			if (UFoxAbilitySystemComponent* FoxASC = Cast<UFoxAbilitySystemComponent>(AbilitySystemComponent))
+			{
+				/**
+				 * Restore the character's abilities from the save data
+				 * 
+				 * AddCharacterAbilitiesFromSaveData() iterates through SaveData->SavedAbilities array and:
+				 * - Re-grants each previously unlocked ability with its saved level
+				 * - Restores ability slot assignments (which input button activates which ability)
+				 * - Restores ability status (locked, unlocked, equipped) for each ability
+				 * 
+				 * This is necessary because abilities are not persistent - they must be re-granted each time the
+				 * game loads. Without this, the player would lose all unlocked abilities and upgrades on load.
+				 * 
+				 * @param SaveData The ULoadScreenSaveGame containing the FSavedAbility array to restore from
+				 */
+				FoxASC->AddCharacterAbilitiesFromSaveData(SaveData);
+			}
 			
 			// Cast<AFoxPlayerState>(GetPlayerState()) safely casts the character's PlayerState to our custom class
 			// This allows us to access Fox-specific progression data (level, XP, attribute points, spell points)
@@ -924,7 +951,119 @@ void AFoxCharacter::SaveProgress_Implementation(const FName& CheckpointTag)
 		// Retrieve the current Vigor attribute value from the character's AttributeSet and save it to persist across game sessions
 		SaveData->Vigor = UFoxAttributeSet::GetVigorAttribute().GetNumericValue(GetAttributeSet());
 		
+		/**
+		 * Mark that the player has completed their first load into the game world
+		 * 
+		 * bFirstTimeLoadIn is a boolean flag in ULoadScreenSaveGame that tracks whether this is the player's initial
+		 * game load. Setting it to false indicates that default attributes and starting abilities have already been
+		 * initialized, and future loads should restore saved progression data instead of re-initializing defaults.
+		 * 
+		 * This prevents overwriting player progression with default values on subsequent game loads.
+		 */
 		SaveData->bFirstTimeLoadIn = false;
+
+		/**
+		 * Early return if this code is executing on a non-authoritative client
+		 * 
+		 * HasAuthority() returns true only on the server in multiplayer or in standalone games
+		 * Ability saving logic should only execute on the server because:
+		 * - The server has the authoritative state of all abilities (levels, unlocks, slots)
+		 * - Clients may have prediction or latency-affected ability states that shouldn't be saved
+		 * - Preventing client-side saves avoids desynchronization and potential save data corruption
+		 * 
+		 * In single-player, HasAuthority() returns true, so this early return doesn't trigger
+		 */
+		if (!HasAuthority()) return;
+
+		/**
+		 * Cast the Ability System Component to UFoxAbilitySystemComponent to access Fox-specific ability management functions
+		 * 
+		 * The base AbilitySystemComponent is of type UAbilitySystemComponent, but we need UFoxAbilitySystemComponent
+		 * to access custom functions like GetAbilityTagFromSpec(), GetSlotFromAbilityTag(), and GetStatusFromAbilityTag()
+		 * which are required to extract ability metadata for saving.
+		 */
+		UFoxAbilitySystemComponent* FoxASC = Cast<UFoxAbilitySystemComponent>(AbilitySystemComponent);
+
+		/**
+		 * Declare a delegate that will be invoked for each ability during iteration
+		 * 
+		 * FForEachAbility is a delegate type defined in UFoxAbilitySystemComponent that takes a single parameter:
+		 * const FGameplayAbilitySpec& - a reference to each ability specification containing ability data
+		 * 
+		 * This delegate will be bound to a lambda function that executes save logic for each ability,
+		 * and then passed to ForEachAbility() to iterate through all granted abilities.
+		 */
+		FForEachAbility SaveAbilityDelegate;
+
+		/**
+		 * Clear the SavedAbilities array to remove stale ability data from any previous saves
+		 * 
+		 * Empty() removes all elements from the TArray, ensuring we start with a clean slate before
+		 * populating it with the current state of all abilities. This prevents duplicate or outdated
+		 * ability entries from persisting across multiple save operations.
+		 */
+		SaveData->SavedAbilities.Empty();
+
+		/**
+		 * Bind a lambda function to the SaveAbilityDelegate that will execute for each ability during iteration
+		 * 
+		 * The lambda captures:
+		 * - this: The AFoxCharacter instance to access member functions and properties
+		 * - FoxASC: The UFoxAbilitySystemComponent to query ability metadata (tags, slots, status)
+		 * - SaveData: The ULoadScreenSaveGame to populate with ability save data
+		 * 
+		 * The lambda takes one parameter:
+		 * - const FGameplayAbilitySpec& AbilitySpec: Reference to the current ability being iterated
+		 */
+		SaveAbilityDelegate.BindLambda([this, FoxASC, SaveData](const FGameplayAbilitySpec& AbilitySpec)
+		{ 
+			// Retrieve the gameplay tag that uniquely identifies this ability from the ability spec using the FoxASC helper function
+			const FGameplayTag AbilityTag = FoxASC->GetAbilityTagFromSpec(AbilitySpec);
+
+			// Retrieve the UAbilityInfo data asset that contains metadata for all abilities in the game using the library function
+			UAbilityInfo* AbilityInfo = UFoxAbilitySystemLibrary::GetAbilityInfo(this);
+
+			// Look up the FFoxAbilityInfo struct containing this ability's metadata (class, type, description) using the ability tag
+			FFoxAbilityInfo Info = AbilityInfo->FindAbilityInfoForTag(AbilityTag);
+
+			// Declare a new FSavedAbility struct to hold all the data needed to restore this ability when loading the save game
+			FSavedAbility SavedAbility;
+
+			// Assign the ability class reference from the metadata so the correct ability can be re-granted when loading
+			SavedAbility.GameplayAbility = Info.Ability;
+
+			// Assign the ability's current level from the spec to preserve ability upgrade progression across saves
+			SavedAbility.AbilityLevel = AbilitySpec.Level;
+
+			// Retrieve and assign the ability's input slot assignment (e.g., which button it's bound to) from FoxASC using the ability tag
+			SavedAbility.AbilitySlot = FoxASC->GetSlotFromAbilityTag(AbilityTag);
+
+			// Retrieve and assign the ability's status (locked, unlocked, equipped) from FoxASC using the ability tag
+			SavedAbility.AbilityStatus = FoxASC->GetStatusFromAbilityTag(AbilityTag);
+
+			// Assign the ability tag to the save struct for identification and lookup when restoring abilities on load
+			SavedAbility.AbilityTag = AbilityTag;
+
+			// Assign the ability type (offensive, passive, none) from the metadata to categorize the ability in the save data
+			SavedAbility.AbilityType = Info.AbilityType;
+
+			// Add the populated FSavedAbility struct to the save data's ability array, preventing duplicates with AddUnique
+			SaveData->SavedAbilities.AddUnique(SavedAbility);
+
+		});
+
+		/**
+		 * Iterate through all granted abilities and invoke the SaveAbilityDelegate lambda for each one
+		 * 
+		 * ForEachAbility() is a UFoxAbilitySystemComponent function that iterates through all FGameplayAbilitySpec
+		 * instances in the ASC's ActivatableAbilities array. For each ability, it invokes the provided delegate
+		 * (SaveAbilityDelegate), passing the ability spec as a parameter to the bound lambda function.
+		 * 
+		 * This populates SaveData->SavedAbilities with FSavedAbility structs containing ability class, level,
+		 * slot assignment, status, tag, and type for all currently granted abilities, enabling full restoration
+		 * of ability states when loading the save game.
+		 */
+		FoxASC->ForEachAbility(SaveAbilityDelegate);
 
 		// Save the updated save data to disk, persisting the new checkpoint location for future game sessions
 		FoxGameMode->SaveInGameProgressData(SaveData);

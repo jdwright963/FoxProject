@@ -7,6 +7,7 @@
 #include "NiagaraComponent.h"
 #include "PassiveNiagaraComponent.generated.h"
 
+class UFoxAbilitySystemComponent;
 /**
  * 
  */
@@ -47,4 +48,14 @@ protected:
 	 * @param bActivate True if the passive ability is being activated, false if it's being deactivated
 	 */
 	void OnPassiveActivate(const FGameplayTag& AbilityTag, bool bActivate);
+
+	/**
+	 * Activates this Niagara component if the associated passive ability identified by PassiveSpellTag is already 
+	 * equipped/active on the provided AbilitySystemComponent. This function is typically called during initialization 
+	 * to ensure the visual effect is displayed when the component is created after the passive ability has already 
+	 * been activated (e.g., when spawning into a level with an already-equipped passive ability).
+	 * 
+	 * @param FoxASC The AbilitySystemComponent to query for the passive ability's equipped/active state
+	 */
+	void ActivateIfEquipped(UFoxAbilitySystemComponent* FoxASC);
 };

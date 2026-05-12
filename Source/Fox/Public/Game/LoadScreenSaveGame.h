@@ -3,8 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "GameFramework/SaveGame.h"
 #include "LoadScreenSaveGame.generated.h"
+
+class UGameplayAbility;
 
 /**
  * Represents the current state of a save slot in the load screen UI.
@@ -19,6 +22,52 @@ enum ESaveSlotStatus
 	EnterName,
 	Taken
 };
+
+/**
+ * Represents a saved gameplay ability with all its persistent data for serialization and restoration.
+ * This struct stores the complete state of a player's ability including its class type, unique identifier,
+ * current status (locked/unlocked), UI slot assignment, ability classification, and upgrade level.
+ * Used by ULoadScreenSaveGame to persist ability data across game sessions, allowing the player's
+ * ability configuration to be saved and restored when loading a game.
+ */
+USTRUCT(BlueprintType)
+struct FSavedAbility
+{
+	GENERATED_BODY()
+	
+	// The class reference of the gameplay ability, defining the actual ability behavior and implementation to be instantiated
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ClassDefaults")
+	TSubclassOf<UGameplayAbility> GameplayAbility;
+
+	// The unique gameplay tag identifier for this ability, used to reference and distinguish this specific ability from others in the system
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	FGameplayTag AbilityTag = FGameplayTag();
+
+	// The gameplay tag representing the current status of the ability (e.g., locked, unlocked, equipped), determining availability and usage
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	FGameplayTag AbilityStatus = FGameplayTag();
+
+	// The gameplay tag identifying which UI slot or input binding this ability is assigned to for player access and activation
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	FGameplayTag AbilitySlot = FGameplayTag();
+
+	// The gameplay tag categorizing the type of ability (e.g., offensive, defensive, passive), used for filtering and organization
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	FGameplayTag AbilityType = FGameplayTag();
+
+	// The current upgrade level of the ability, determining its power and effectiveness with higher levels providing stronger effects
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	int32 AbilityLevel;
+};
+
+
+// Overloading the equality operator (==) to compare two FSavedAbility instances for equality based solely on their AbilityTag
+// Two abilities are considered equal if their AbilityTag values match exactly, ignoring all other fields
+// Returns true if the AbilityTag values match exactly, false otherwise
+inline bool operator==(const FSavedAbility& Left, const FSavedAbility& Right)
+{
+	return Left.AbilityTag.MatchesTagExact(Right.AbilityTag);
+}
 
 /**
  * 
@@ -92,4 +141,11 @@ public:
 	// The player's vigor attribute value, typically affecting maximum health and survivability
 	UPROPERTY()
 	float Vigor = 0;
+	
+	/* Abilities */
+
+	// Array of all abilities the player has acquired, storing their configuration including ability class, tags for identification,
+	// status (locked/unlocked), assigned slot, type classification, and current level for each ability
+	UPROPERTY()
+	TArray<FSavedAbility> SavedAbilities;
 };

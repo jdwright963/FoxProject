@@ -9,6 +9,7 @@
 #include "AbilitySystem/Abilities/FoxGameplayAbility.h"
 #include "AbilitySystem/Data/AbilityInfo.h"
 #include "Fox/FoxLogChannels.h"
+#include "Game/LoadScreenSaveGame.h"
 #include "Interaction/PlayerInterface.h"
 
 void UFoxAbilitySystemComponent::AbilityActorInfoSet()
@@ -20,6 +21,146 @@ void UFoxAbilitySystemComponent::AbilityActorInfoSet()
 	 * to gameplay effects (such as damage, buffs, debuffs) as they are applied to this actor.
 	 */
 	OnGameplayEffectAppliedDelegateToSelf.AddUObject(this, &UFoxAbilitySystemComponent::ClientEffectApplied);
+}
+
+void UFoxAbilitySystemComponent::AddCharacterAbilitiesFromSaveData(ULoadScreenSaveGame* SaveData)
+{
+	/*
+	 * Iterate through each saved ability in the SaveData's SavedAbilities array to restore the player's abilities from the save file.
+	 * SaveData->SavedAbilities is a TArray<FSavedAbility> containing all ability data that was saved when the player last saved their game,
+	 * including the ability class reference, level, slot assignment, status, type, and tag for each ability the player had unlocked, equipped,
+	 * or purchased. We use a const reference to avoid copying each FSavedAbility struct during iteration since we only need to read the data.
+	 */
+	for (const FSavedAbility& Data : SaveData->SavedAbilities)
+	{
+		/*
+		 * Extract and store the ability class reference from the saved data to identify which ability blueprint to grant.
+		 * Data.GameplayAbility is a TSubclassOf<UGameplayAbility> that holds a reference to the specific ability class (blueprint) that was
+		 * saved (e.g., GA_FireBolt, GA_LightningSpheres). This class reference is necessary to create a new ability spec instance that can
+		 * be granted to this ASC, reconstructing the exact ability the player had when they saved their game.
+		 */
+		const TSubclassOf<UGameplayAbility> LoadedAbilityClass = Data.GameplayAbility;
+
+		/*
+		 * Create a gameplay ability spec for the loaded ability using its saved class reference and level from the save file.
+		 * FGameplayAbilitySpec is the container that holds all runtime information about an ability instance, and we initialize it with
+		 * LoadedAbilityClass (the ability blueprint reference) and Data.AbilityLevel (the power level the ability was at when saved).
+		 * This recreates the ability at the exact same level and configuration it had when the player last saved, preserving their progression.
+		 */
+		FGameplayAbilitySpec LoadedAbilitySpec = FGameplayAbilitySpec(LoadedAbilityClass, Data.AbilityLevel);
+
+		/*
+		 * Add the saved input slot tag to the ability spec's dynamic tags to restore which input binding the ability was equipped to.
+		 * Data.AbilitySlot is a FGameplayTag (e.g., "InputTag.LMB", "InputTag.1") that was saved indicating which input slot the ability
+		 * was bound to when the player saved their game. Adding this tag to the spec's dynamic tags recreates the input-to-ability mapping,
+		 * ensuring the ability will activate when the player presses the same input it was originally assigned to before saving.
+		 */
+		LoadedAbilitySpec.GetDynamicSpecSourceTags().AddTag(Data.AbilitySlot);
+		
+		/*
+		 * Add the saved status tag to the ability spec's dynamic tags to restore the ability's state (equipped, unlocked, etc.).
+		 * Data.AbilityStatus is a FGameplayTag (e.g., "Abilities.Status.Equipped", "Abilities.Status.Unlocked") that was saved indicating
+		 * the ability's state when the player saved their game. Adding this tag recreates whether the ability was equipped and ready to use,
+		 * or unlocked but not equipped, ensuring the ability system and UI display the correct state for the ability after loading.
+		 */
+		LoadedAbilitySpec.GetDynamicSpecSourceTags().AddTag(Data.AbilityStatus);
+		
+		/*
+		 * Check if the loaded ability's type matches the offensive/active ability type tag to determine how to grant it.
+		 * Data.AbilityType is a FGameplayTag from the save file indicating whether this ability is offensive (player-activated) or passive
+		 * (auto-activated). This comparison uses exact equality (==) to check if the type matches Abilities_Type_Offensive, determining
+		 * whether we should grant the ability as a standard ability that waits for player input to activate, or handle it differently below.
+		 */
+		if (Data.AbilityType == FFoxGameplayTags::Get().Abilities_Type_Offensive)
+		{
+			/*
+			 * Grant the offensive ability to this ASC without activating it, making it available for the player to use through input.
+			 * GiveAbility() adds the LoadedAbilitySpec to this ASC's activatable abilities array, registering it in the ability system
+			 * so it can be activated when the player presses the input bound to this ability's slot tag. For offensive/active abilities,
+			 * we don't auto-activate them, they remain dormant until the player explicitly triggers them through gameplay input.
+			 */
+			GiveAbility(LoadedAbilitySpec);
+		}
+		
+		/*
+		 * Check if the loaded ability's type matches the passive ability type tag to determine how to grant it.
+		 * Data.AbilityType is a FGameplayTag from the save file indicating whether this ability is offensive (player-activated) or passive
+		 * (auto-activated). This comparison uses exact equality (==) to check if the type matches Abilities_Type_Passive, determining
+		 * whether we should grant the ability and immediately activate it for passive effects, or grant it without activation.
+		 */
+		else if (Data.AbilityType == FFoxGameplayTags::Get().Abilities_Type_Passive)
+		{
+			/*
+			 * Check if the passive ability's status tag exactly matches the equipped status to determine if it should be activated.
+			 * Data.AbilityStatus is a FGameplayTag from the save file indicating the ability's state when the player saved their game.
+			 * MatchesTagExact() performs an exact equality check (not hierarchical matching) to verify the status is specifically
+			 * "Abilities.Status.Equipped" rather than "Abilities.Status.Unlocked". Only equipped passive abilities should be activated
+			 * immediately upon loading, unlocked but unequipped passive abilities should remain dormant until the player equips them.
+			 */
+			if (Data.AbilityStatus.MatchesTagExact(FFoxGameplayTags::Get().Abilities_Status_Equipped))
+			{
+				/*
+				 * Grant the equipped passive ability to this ASC and immediately activate it once to apply its effects.
+				 * GiveAbilityAndActivateOnce() is a convenience function that combines GiveAbility() and TryActivateAbility() into one call,
+				 * granting the ability to this ASC's activatable abilities array and then immediately executing it once. This is specifically
+				 * designed for passive abilities that were equipped when the game was saved and need to resume their continuous effects
+				 * (like stat buffs, regeneration, or auras) immediately upon loading. Unlike offensive abilities that wait for player input,
+				 * passive abilities must activate automatically to provide their benefits as soon as the save data is restored.
+				 */
+				GiveAbilityAndActivateOnce(LoadedAbilitySpec);
+				
+				/*
+				 * Notify all clients to activate the visual effects for the passive ability being loaded from the save file.
+				 * MulticastActivatePassiveEffect() is a replicated multicast RPC that executes on the server and all clients
+				 * (when called on the server), broadcasting the ActivatePassiveEffect delegate with the ability tag and activation state.
+				 * We pass Data.AbilityTag to identify which specific passive ability is being restored from the save, and true to indicate
+				 * the passive should activate its visual effects. This RPC triggers the MulticastActivatePassiveEffect_Implementation()
+				 * function which broadcasts the ActivatePassiveEffect delegate on all clients. UPassiveNiagaraComponent instances listen
+				 * to this delegate and will activate their Niagara particle systems when they receive a broadcast matching their PassiveSpellTag
+				 * with bActivate=true. This ensures passive ability visual effects (like auras, glows, or particle trails) are properly
+				 * displayed across all clients when loading a save where the passive ability was equipped, providing visual feedback that
+				 * the passive effect is active on the character.
+				 */
+				MulticastActivatePassiveEffect(Data.AbilityTag, true);
+			}
+			
+			/*
+			 * Handle the case where the passive ability is unlocked but not equipped to any input slot.
+			 * This else block executes when the passive ability's status tag is "Abilities.Status.Unlocked" rather than
+			 * "Abilities.Status.Equipped". When a passive ability is unlocked but not equipped, we should grant it to this
+			 * ASC so it appears in the player's ability list and can be equipped later, but we should NOT activate it
+			 * automatically since only equipped passive abilities should provide their effects. 
+			 */
+			else
+			{
+				/*
+				 * Grant the unlocked but unequipped passive ability to this ASC without activating it.
+				 * GiveAbility() adds the LoadedAbilitySpec to this ASC's activatable abilities array, making the ability
+				 * available for the player to equip later through the spell menu UI. Unlike the equipped passive ability
+				 * case above where we use GiveAbilityAndActivateOnce() to immediately activate the passive effect, here we
+				 * only grant the ability without activation.
+				 */
+				GiveAbility(LoadedAbilitySpec);
+			}
+		}
+	}
+	/*
+	 * Set the flag to true indicating that startup abilities have been successfully granted from save data.
+	 * This flag is used to prevent duplicate ability grants if AddCharacterAbilitiesFromSaveData is called multiple times,
+	 * and signals to other systems that this ASC is fully initialized with abilities restored from the save file and ready to use.
+	 * This is the same flag used in AddCharacterAbilities() but here it marks the completion of loading abilities from a save
+	 * rather than granting fresh startup abilities to a new character.
+	 */
+	bStartupAbilitiesGiven = true;
+
+	/*
+	 * Broadcast the AbilitiesGivenDelegate multicast delegate.
+	 * This notifies all bound listeners (such as UI widgets or game systems) that abilities have been restored from the save file
+	 * and are now available. Listeners can use this notification to update UI elements like ability bars, initialize ability-related
+	 * systems, or perform any other logic that depends on abilities being ready. This ensures the UI and other systems can properly
+	 * initialize after loading a saved game, just as they would when starting a new game with AddCharacterAbilities().
+	 */
+	AbilitiesGivenDelegate.Broadcast();
 }
 
 void UFoxAbilitySystemComponent::AddCharacterAbilities(const TArray<TSubclassOf<UGameplayAbility>>& StartupAbilities)
@@ -92,6 +233,20 @@ void UFoxAbilitySystemComponent::AddCharacterPassiveAbilities(const TArray<TSubc
 		// Create a gameplay ability spec for the current passive ability in the loop and use level 1, since this effect
 		// does not scale or change with level
 		FGameplayAbilitySpec AbilitySpec = FGameplayAbilitySpec(AbilityClass, 1);
+		
+		/*
+		 * Mark this passive ability as equipped by adding the Abilities_Status_Equipped tag to its dynamic tags container.
+		 * GetDynamicSpecSourceTags() returns the FGameplayTagContainer where we store runtime status tags for this
+		 * ability spec. AddTag() marks this passive ability with the Equipped status, indicating it's automatically
+		 * equipped and active from the moment it's granted during character initialization. Unlike active abilities
+		 * that players must manually equip to input slots, passive abilities in the StartupPassiveAbilities array
+		 * are immediately equipped and activated when the character is created. This status tag allows other systems
+		 * to query whether this passive ability is currently equipped and providing its effects, and ensures the UI
+		 * displays these passive abilities as equipped rather than unlocked-but-unequipped. The Equipped status
+		 * distinguishes these startup passives from passive abilities that might be unlocked later through progression
+		 * but not yet equipped by the player.
+		 */
+		AbilitySpec.GetDynamicSpecSourceTags().AddTag(FFoxGameplayTags::Get().Abilities_Status_Equipped);
 		
 		/*
 		 * Grant the passive ability to this ASC and immediately activate it once.
@@ -806,6 +961,29 @@ void UFoxAbilitySystemComponent::ServerEquipAbility_Implementation(const FGamepl
 					 */
 					MulticastActivatePassiveEffect(AbilityTag, true);
 				}
+				/*
+				 * Remove the current status tag (Abilities_Status_Unlocked) from the ability spec's dynamic tags container.
+				 * GetDynamicSpecSourceTags() returns the FGameplayTagContainer where we store runtime status tags for this
+				 * ability spec. RemoveTag() removes the Unlocked status tag since the player is now equipping this passive
+				 * ability for the first time, transitioning it from "unlocked but not equipped" to "equipped and active".
+				 * GetStatusFromSpec(*AbilitySpec) retrieves the current status tag from the spec, which should be
+				 * Abilities_Status_Unlocked since we're in the code path where the ability has no slot assignment yet.
+				 * This tag removal is necessary to maintain a single status tag per ability, we can't have an ability
+				 * marked as both Unlocked and Equipped simultaneously.
+				 */
+				AbilitySpec->GetDynamicSpecSourceTags().RemoveTag(GetStatusFromSpec(*AbilitySpec));
+
+				/*
+				 * Add the Abilities_Status_Equipped tag to the ability spec's dynamic tags container to mark it as equipped.
+				 * GetDynamicSpecSourceTags() returns the FGameplayTagContainer where we store runtime status tags for this
+				 * ability spec. AddTag() marks this passive ability with the Equipped status, indicating it's now actively
+				 * equipped to an input slot and providing its effects to the player. This status change triggers UI updates
+				 * through the ClientEquipAbility RPC below, ensuring the spell menu and spell globe displays show this
+				 * passive ability as equipped and active rather than just unlocked. For passive abilities, the Equipped
+				 * status also indicates that the ability has been activated and is continuously providing its effects
+				 * (such as stat buffs or auras) to the player character.
+				 */
+				AbilitySpec->GetDynamicSpecSourceTags().AddTag(GameplayTags.Abilities_Status_Equipped);
 			}
 			/*
 			 * Assign the new input slot tag to the ability spec to bind it to the specified input action.

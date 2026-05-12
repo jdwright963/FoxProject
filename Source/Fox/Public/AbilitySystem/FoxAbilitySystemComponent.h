@@ -6,6 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "FoxAbilitySystemComponent.generated.h"
 
+class ULoadScreenSaveGame;
 class UFoxAbilitySystemComponent;
 
 // whats the difference between dynamic and non dynamic delegates here and multicast vs non multicast
@@ -135,6 +136,19 @@ public:
 	 * passive ability's equipped state without directly coupling the ability system to specific effect components.
 	 */
 	FActivatePassiveEffect ActivatePassiveEffect;
+	
+	/**
+	 * Grants gameplay abilities to this ability system component based on saved ability data from a load screen save game.
+	 * This function is called when loading a saved game to restore the player's previously granted abilities with their
+	 * saved states (levels, equipped slots, status tags). Unlike AddCharacterAbilities which grants fresh abilities at level 1,
+	 * this function restores abilities with their persisted data from the save file, including ability levels, input slot
+	 * assignments (dynamic tags), and any other saved ability spec information. Used during game load to recreate the exact
+	 * ability state the player had when they saved their game.
+	 * Sets bStartupAbilitiesGiven to true and broadcasts AbilitiesGivenDelegate when complete.
+	 * 
+	 * @param SaveData Pointer to the ULoadScreenSaveGame object containing the saved ability data to restore
+	 */
+	void AddCharacterAbilitiesFromSaveData(ULoadScreenSaveGame* SaveData);
 
 	/**
 	 * Grants an array of gameplay abilities to this ability system component.

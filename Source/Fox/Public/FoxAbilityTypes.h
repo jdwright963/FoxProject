@@ -2,39 +2,6 @@
 
 #include "GameplayEffectTypes.h"
 
-/**
- * The following include statement was used in the tutorial. We believe it is unnecessary. We leave it here commented out
- * for documentation purposes, and in case problems arise in the future.
- * 
- * NOTE: The following include is NOT needed and should be REMOVED.
- * 
- * REASONS WHY THIS INCLUDE IS UNNECESSARY:
- * 
- * 1. WRONG LANGUAGE STANDARD:
- *    stdbool.h is a C99 standard header that defines bool, true, and false for C language.
- *    This project uses C++20, which has native bool type built into the language since C++98.
- *    C++ does not need and should not use stdbool.h.
- * 
- * 2. ABSOLUTE PATH ANTI-PATTERN:
- *    The include uses an absolute hard-coded path to a specific Visual Studio installation.
- *    This breaks portability - the code will not compile on other machines with different
- *    VS installation paths, different VS versions, or non-Windows platforms (Mac/Linux).
- *    Unreal Engine is cross-platform and this violates that principle.
- * 
- * 3. NOT USED IN THIS FILE:
- *    This header file uses bool extensively (bIsBlockedHit, bIsCriticalHit, etc.) but these
- *    work perfectly without stdbool.h because C++ has native bool support. No symbols from
- *    stdbool.h are actually being used.
- * 
- * 4. UNREAL ENGINE CONVENTIONS:
- *    Unreal Engine code never includes stdbool.h. UE uses C++ bool natively throughout the
- *    entire codebase. Including C standard library headers in UE C++ code is non-standard
- *    and can cause conflicts with UE's type system.
- * 
- * RECOMMENDATION: Delete this line entirely. The code will compile and function identically.
- */
-//#include "../../../../../Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133/INCLUDE/stdbool.h"
-
 // We created this file manually and had to add the following line as well as the '#pragma once' at the top 
 #include "FoxAbilityTypes.generated.h"
 
