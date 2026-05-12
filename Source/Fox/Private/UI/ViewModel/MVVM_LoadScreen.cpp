@@ -67,6 +67,9 @@ void UMVVM_LoadScreen::NewSlotButtonPressed(int32 Slot, const FString& EnteredNa
 	// Assign the player-entered name to the selected load slot's player name field
 	LoadSlots[Slot]->SetPlayerName(EnteredName);
 	
+	// Initialize the player level to 1 for this new save slot, representing a fresh game start at the beginning level
+	LoadSlots[Slot]->SetPlayerLevel(1);
+	
 	// Mark the slot status as Taken to indicate this slot now contains valid save data
 	LoadSlots[Slot]->SlotStatus = Taken;
 	
@@ -217,6 +220,9 @@ void UMVVM_LoadScreen::LoadData()
 		// Assign the loaded player start tag from the save object to the view model to determine which PlayerStart 
 		// actor the player will spawn at when loading this save
 		LoadSlot.Value->PlayerStartTag = SaveObject->PlayerStartTag;
+		
+		// Assign the loaded player level from the save object to the view model to track the character's progression level for this save slot
+		LoadSlot.Value->SetPlayerLevel(SaveObject->PlayerLevel);
 	} 
 }
 

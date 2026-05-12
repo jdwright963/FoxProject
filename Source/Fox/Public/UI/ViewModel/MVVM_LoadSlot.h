@@ -59,6 +59,9 @@ public:
 	
 	// Sets the map name for this save slot and notifies bound UI elements of the change
 	void SetMapName(FString InMapName);
+	
+	// Sets the player's level for this save slot and notifies bound UI elements of the change
+	void SetPlayerLevel(int32 InLevel);
 
 	// Sets the unique save slot name identifier and notifies bound UI elements of the change
 	void SetLoadSlotName(FString InLoadSlotName);
@@ -68,6 +71,9 @@ public:
 	
 	// Returns the map name associated with this save slot, used for displaying in the UI
 	FString GetMapName() const { return MapName; }
+
+	// Returns the player's current level associated with this save slot, used for displaying character progression in the UI
+	int32 GetPlayerLevel() const { return PlayerLevel; }
 
 	// Returns the unique save slot identifier name used for loading and saving game data
 	FString GetLoadSlotName() const { return LoadSlotName; }
@@ -91,6 +97,15 @@ private:
 	// meta = (AllowPrivateAccess = "true"): Allows Blueprint access to this private member variable
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Setter, Getter, meta = (AllowPrivateAccess="true"));
 	FString MapName;
+	
+	// The player's current level associated with this save slot, displayed in the UI to show character progression
+	// FieldNotify: Enables MVVM binding - automatically notifies bound UI elements when the value changes
+	// Setter: Specifies that SetPlayerLevel() function (must be named exactly like this) should be used to modify this
+	// property (enables proper notification)
+	// Getter: Specifies that GetPlayerLevel() function (must be named exactly like this) should be used to read this property
+	// meta = (AllowPrivateAccess = "true"): Allows Blueprint access to this private member variable
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Setter, Getter, meta = (AllowPrivateAccess="true"));
+	int32 PlayerLevel;
 
 	// The unique identifier name for this save slot (e.g., "LoadSlot_0"), used for loading and saving game data
 	// FieldNotify: Enables MVVM binding - automatically notifies bound UI elements when the value changes

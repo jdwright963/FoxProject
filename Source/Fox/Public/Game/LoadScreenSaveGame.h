@@ -63,7 +63,7 @@ public:
 
 	// The player's current level, representing their overall progression and unlocking new abilities and stat increases
 	UPROPERTY()
-	int32 PlayerLevel = 0;
+	int32 PlayerLevel = 1;
 
 	// The player's accumulated experience points, used to track progress toward leveling up
 	UPROPERTY()

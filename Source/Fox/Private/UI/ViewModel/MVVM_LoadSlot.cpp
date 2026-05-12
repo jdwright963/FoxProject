@@ -24,6 +24,12 @@ void UMVVM_LoadSlot::SetMapName(FString InMapName)
 	UE_MVVM_SET_PROPERTY_VALUE(MapName, InMapName);
 }
 
+void UMVVM_LoadSlot::SetPlayerLevel(int32 InLevel)
+{
+	// Updates the PlayerLevel property with the new value and automatically notifies any bound UI elements through Unreal's MVVM system
+	UE_MVVM_SET_PROPERTY_VALUE(PlayerLevel, InLevel);
+}
+
 void UMVVM_LoadSlot::SetLoadSlotName(FString InLoadSlotName)
 {
 	// Updates the LoadSlotName property with the new value and automatically notifies any bound UI elements through Unreal's MVVM system
