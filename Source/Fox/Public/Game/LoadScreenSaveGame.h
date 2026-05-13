@@ -24,6 +24,66 @@ enum ESaveSlotStatus
 };
 
 /**
+ * Represents the complete saved state of a single actor instance for persistence across game sessions.
+ * This struct stores three critical pieces of information: the actor's unique identifier (ActorName),
+ * its spatial transformation in the world (Transform), and serialized property data (Bytes).
+ * The Bytes array contains only properties marked with the SaveGame specifier, which are automatically
+ * serialized from the actor and can be restored when loading. Used by FSavedMap to store multiple
+ * actor states within a single level/map. The equality operator (==) is overloaded to compare actors
+ * based solely on ActorName, allowing efficient searching and duplicate detection in saved actor arrays.
+ */
+USTRUCT()
+struct FSavedActor
+{
+	GENERATED_BODY()
+
+	// The unique name identifier for this saved actor, used to match and restore the correct actor instance when loading the saved game
+	UPROPERTY()
+	FName ActorName = FName();
+
+	// The complete spatial transformation of the actor including position, rotation, and scale in 3D world space at the time of save
+	UPROPERTY()
+	FTransform Transform = FTransform();
+
+	// Serialized variables from the Actor - only those marked with SaveGame specifier
+	// Raw binary data containing all SaveGame-marked properties from the actor, serialized into a byte array for persistent storage and restoration
+	UPROPERTY()
+	TArray<uint8> Bytes;
+};
+
+// Overloading the equality operator (==) to compare two FSavedActor instances for equality based solely on their ActorName
+// Two actors are considered equal if their ActorName values match exactly, ignoring Transform and Bytes fields
+// Returns true if the ActorName values match exactly, false otherwise
+// Used for searching and detecting duplicate actors in saved actor arrays
+inline bool operator==(const FSavedActor& Left, const FSavedActor& Right)
+{
+	return Left.ActorName == Right.ActorName;
+}
+
+/**
+ * Represents the complete saved state of a single map/level including all persistent actors within it.
+ * This struct stores the map's asset identifier and an array of all serialized actors that existed in the map
+ * at save time. Used by ULoadScreenSaveGame to persist entire level states across game sessions, allowing
+ * the game world to be restored exactly as it was when the player saved, including actor positions, properties,
+ * and states. Each FSavedMap entry corresponds to one visited level in the game.
+ */
+USTRUCT()
+struct FSavedMap
+{
+	GENERATED_BODY()
+
+	// The asset path identifier of this saved map (e.g., "/Game/Maps/Level1"), used to identify which level this saved 
+	// state belongs to and to load the correct map when restoring
+	UPROPERTY()
+	FString MapAssetName = FString();
+
+	// Array containing all serialized actor instances that existed in this map at the time of save, each storing the 
+	// actor's name and transform data for complete state restoration
+	UPROPERTY()
+	TArray<FSavedActor> SavedActors;
+};
+
+/**
  * Represents a saved gameplay ability with all its persistent data for serialization and restoration.
  * This struct stores the complete state of a player's ability including its class type, unique identifier,
  * current status (locked/unlocked), UI slot assignment, ability classification, and upgrade level.
@@ -148,4 +208,17 @@ public:
 	// status (locked/unlocked), assigned slot, type classification, and current level for each ability
 	UPROPERTY()
 	TArray<FSavedAbility> SavedAbilities;
+	
+	// Array of all maps/levels that have been visited and saved, storing the map asset name and all serialized actors within each map
+	// for complete level state persistence and restoration across game sessions
+	UPROPERTY()
+	TArray<FSavedMap> SavedMaps;
+
+	// Retrieves the saved map struct for a specific map by its asset name, used to restore the complete state of actors
+	// and their properties when loading into that level
+	FSavedMap GetSavedMapWithMapName(const FString& InMapName);
+
+	// Checks whether a map with the specified asset name exists in the SavedMaps array, used to determine if a level
+	// has previously been visited and saved in this saved game
+	bool HasMap(const FString& InMapName);
 };
