@@ -46,6 +46,9 @@ public:
 	// Saves the current in-game progress data to disk using the slot name and index stored in the provided save object
 	void SaveInGameProgressData(ULoadScreenSaveGame* SaveObject);
 	
+	// Saves the current state of the specified world (including all actors and their properties) to the in-game save data
+	void SaveWorldState(UWorld* World);
+	
 	// Initiates level travel to the map associated with the provided save slot by looking up the map name in the Maps dictionary and opening the corresponding level
 	void TravelToMap(UMVVM_LoadSlot* Slot);
 

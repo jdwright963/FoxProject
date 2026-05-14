@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerStart.h"
+#include "Interaction/SaveInterface.h"
 #include "Checkpoint.generated.h"
 
 class USphereComponent;
@@ -11,13 +12,19 @@ class USphereComponent;
  * 
  */
 UCLASS()
-class FOX_API ACheckpoint : public APlayerStart
+class FOX_API ACheckpoint : public APlayerStart, public ISaveInterface
 {
 	GENERATED_BODY()
 public:
 
 	// Constructor that initializes the checkpoint actor with custom component setup using the provided object initializer
 	ACheckpoint(const FObjectInitializer& ObjectInitializer);
+	
+	// Boolean flag indicating whether this checkpoint has been reached by the player, automatically saved to disk
+	// BlueprintReadOnly: Allows Blueprint scripts to read this value but not modify it (modification handled in C++)
+	// SaveGame: Marks this property to be automatically serialized and saved when the game is saved
+	UPROPERTY(BlueprintReadOnly, SaveGame)
+	bool bReached = false;
 
 protected:
 

@@ -3,10 +3,13 @@
 
 #include "Game/FoxGameModeBase.h"
 
+#include "EngineUtils.h"
 #include "Game/FoxGameInstance.h"
 #include "Game/LoadScreenSaveGame.h"
 #include "GameFramework/PlayerStart.h"
+#include "Interaction/SaveInterface.h"
 #include "Kismet/GameplayStatics.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 #include "UI/ViewModel/MVVM_LoadSlot.h"
 
 void AFoxGameModeBase::SaveSlotData(UMVVM_LoadSlot* LoadSlot, int32 SlotIndex)
@@ -116,6 +119,141 @@ void AFoxGameModeBase::SaveInGameProgressData(ULoadScreenSaveGame* SaveObject)
 
 	// Write the updated save game object to persistent storage at the specified slot name and index, preserving all progress data
 	UGameplayStatics::SaveGameToSlot(SaveObject, InGameLoadSlotName, InGameLoadSlotIndex);
+}
+
+void AFoxGameModeBase::SaveWorldState(UWorld* World)
+{
+	// Retrieve the current map's full name from the World object to identify which level's state we're saving
+	FString WorldName = World->GetMapName();
+	
+	// Remove the streaming levels prefix from the map name to get the clean asset name used for save identification
+	// StreamingLevelsPrefix is a string that Unreal Engine automatically prepends to map names when they are loaded as streaming levels (e.g., "/Game/Maps/")
+	// This prefix needs to be removed because we want to store only the base asset name (e.g., "MainLevel" instead of "/Game/Maps/MainLevel")
+	// in our save data structure for consistent identification and comparison when loading saved game states across different sessions
+	WorldName.RemoveFromStart(World->StreamingLevelsPrefix);
+
+	// Cast the game instance to UFoxGameInstance to access the LoadSlotName and LoadSlotIndex needed for save operations
+	UFoxGameInstance* FoxGI = Cast<UFoxGameInstance>(GetGameInstance());
+	
+	// Validate that the cast succeeded; if FoxGI is null, this will crash the program to catch configuration errors early
+	check(FoxGI);
+
+	// Load the save game data for the current slot and enter this block if the load was successful
+	if (ULoadScreenSaveGame* SaveGame = GetSaveSlotData(FoxGI->LoadSlotName, FoxGI->LoadSlotIndex))
+	{
+		// Check if this world/map has not been saved before in the save game data
+		if (!SaveGame->HasMap(WorldName))
+		{
+			// Create a new FSavedMap structure to hold the state data for this previously unsaved map
+			FSavedMap NewSavedMap;
+			
+			// Store the clean map asset name in the new saved map structure for identification when loading
+			NewSavedMap.MapAssetName = WorldName;
+			
+			// Add the new saved map structure to the array of saved maps in the save game object
+			SaveGame->SavedMaps.Add(NewSavedMap);
+		}
+		// Retrieve the saved map data structure for the current world from the save game object using the world's asset name
+		FSavedMap SavedMap = SaveGame->GetSavedMapWithMapName(WorldName);
+
+		// Clear all previously saved actor data from this map's saved actors array to prepare for fresh serialization of current world state
+		SavedMap.SavedActors.Empty(); 
+		
+		// Iterate through all actors currently present in the world using FActorIterator to find actors that need to be saved
+		// FActorIterator is an Unreal Engine helper class that provides a convenient way to iterate over all actors in a world
+		// The for loop pattern works as follows:
+		//   - FActorIterator It(World): This calls the FActorIterator constructor to create an iterator object named 'It',
+		//     passing the World pointer as a parameter to initialize the iterator with the given world, starting at the first actor.
+		//     This is standard C++ Direct Initialization. It is exactly the same as writing: FActorIterator It = FActorIterator(World);
+		//   - It: Checks if the iterator is valid (returns true if there are more actors to process, false when done)
+		//   - ++It: Advances the iterator to the next actor in the world after each loop iteration
+		for (FActorIterator It(World); It; ++It)
+		{
+			// Dereference the actor iterator using the * operator to obtain the actual AActor pointer for the current actor being processed
+			// Dereferencing is the process of accessing the value that a pointer or iterator points to
+			// FActorIterator overloads the * operator to return the AActor* that the iterator currently points to
+			// This converts the iterator object into the actual actor pointer we can work with
+			// Similar to dereferencing a raw pointer: if you have AActor* ptr, then *ptr gives you the AActor object itself
+			// Here, *It calls FActorIterator::operator*() which returns the AActor* at the iterator's current position
+			AActor* Actor = *It;
+
+			// Skip this actor if it's invalid or doesn't implement the USaveInterface, ensuring only saveable actors are processed
+			if (!IsValid(Actor) || !Actor->Implements<USaveInterface>()) continue;
+
+			// Create a new FSavedActor structure to hold this actor's serialized state data (name, transform, and serialized properties)
+			FSavedActor SavedActor;
+
+			// Store the actor's unique FName identifier to enable finding and restoring the correct actor when loading the save
+			SavedActor.ActorName = Actor->GetFName();
+
+			// Store the actor's current world transform (position, rotation, and scale) to restore its spatial state when loading
+			SavedActor.Transform = Actor->GetTransform();
+			
+			// Create a memory writer archive that will serialize the actor's property data into the SavedActor.Bytes TArray<uint8> for persistent storage
+			// FMemoryWriter is an Unreal Engine archive class that writes serialized data directly into a byte array in memory
+			// instead of writing to a file on disk. It implements the FArchive interface and provides functionality to convert
+			// C++ objects and their properties into a linear sequence of bytes that can be stored in the SavedActor.Bytes array.
+			// This byte array can then be saved to disk as part of the save game file and later deserialized to restore the actor's state.
+			// The MemoryWriter will be wrapped by the proxy archive below to handle special serialization requirements for UObject references.
+			FMemoryWriter MemoryWriter(SavedActor.Bytes);
+
+			// Wrap the memory writer in an archive that serializes UObject references and FNames as strings.
+			// This is useful for save data because raw UObject pointers are only memory addresses and are not valid
+			// after the game exits or the level is reloaded.
+			//
+			// FObjectAndNameAsStringProxyArchive serializes UObject references by name/path and serializes FNames
+			// as strings, allowing those references to be resolved again when loading if the objects can be found
+			// or loaded.
+			//
+			// The second parameter, bInLoadIfFindFails, only matters when this archive is used for loading.
+			// If true, unresolved object references may be loaded from disk if they cannot be found in memory.
+			// Since this archive currently wraps an FMemoryWriter, the flag has no effect during saving, but using
+			// true is common when the same archive pattern is also used for loading save data.
+			FObjectAndNameAsStringProxyArchive Archive(MemoryWriter, true);
+			
+			// Set the archive's save game flag to true to mark this as a save game archive, which tells Unreal Engine 
+			// to use SaveGame-specific serialization behavior for properties marked with the SaveGame specifier.
+			//
+			// When ArIsSaveGame is true, the Serialize() method will only serialize UPROPERTY members that have the 
+			// SaveGame specifier. This is critical for save systems because it provides fine-grained control over 
+			// which properties are persisted to disk versus which are runtime-only or derived data.
+			//
+			// For example, in an actor class you might have:
+			//   UPROPERTY(SaveGame) int32 Health;           // This WILL be serialized when ArIsSaveGame = true
+			//   UPROPERTY() int32 CachedDamageValue;        // This will NOT be serialized when ArIsSaveGame = true
+			//
+			// Without this flag set to true, calling Serialize() would serialize ALL properties regardless of the 
+			// SaveGame specifier, which could bloat save files with unnecessary data.
+			//
+			// This flag is part of Unreal's FArchive base class and is checked internally by the engine's serialization 
+			// code when determining whether to serialize each individual property during the Serialize() call below.
+			Archive.ArIsSaveGame = true;
+
+			// Serialize the actor's properties (those marked with SaveGame specifier) into the archive's byte array 
+			// for persistent storage, capturing the actor's current state data
+			Actor->Serialize(Archive);
+
+			// Add the serialized actor data to the saved actors array, using AddUnique to prevent duplicate entries 
+			// if the actor was already saved in this map's state
+			SavedMap.SavedActors.AddUnique(SavedActor);
+		}
+
+		// Iterate through all saved maps in the save game object to find and replace the map entry that matches 
+		// the current world name with the newly serialized world state
+		for (FSavedMap& MapToReplace : SaveGame->SavedMaps)
+		{
+			// Check if the current saved map's asset name matches the world name we're trying to update
+			if (MapToReplace.MapAssetName == WorldName)
+			{
+				// Assign the updated SavedMap to replace the old map data with the new serialized world state containing
+				// all current actor data
+				MapToReplace = SavedMap;
+			}
+		}
+		// Write the updated save game object to persistent storage at the specified slot, preserving all changes made 
+		// during this save operation including the updated world state
+		UGameplayStatics::SaveGameToSlot(SaveGame, FoxGI->LoadSlotName, FoxGI->LoadSlotIndex);
+	}
 }
 
 void AFoxGameModeBase::TravelToMap(UMVVM_LoadSlot* Slot)
