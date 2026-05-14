@@ -255,6 +255,13 @@ void AFoxCharacter::PossessedBy(AController* NewController)
 	// Load the player's saved progression data (level, XP, attributes, spell points) from disk and restore character 
 	// state based on whether this is a new game or a loaded save
 	LoadProgress();
+	
+	// Retrieve the current game mode and cast it to AFoxGameModeBase to access Fox-specific world state loading functionality
+	if (AFoxGameModeBase* FoxGameMode = Cast<AFoxGameModeBase>(UGameplayStatics::GetGameMode(this)))
+	{
+		// Restore the world state (enemy positions, item pickups, destructibles, checkpoints) from the save file for the current world/level
+		FoxGameMode->LoadWorldState(GetWorld());
+	}
 }
 
 void AFoxCharacter::LoadProgress()

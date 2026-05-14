@@ -20,6 +20,17 @@ public:
 	// Constructor that initializes the checkpoint actor with custom component setup using the provided object initializer
 	ACheckpoint(const FObjectInitializer& ObjectInitializer);
 	
+	/* Save Interface */
+
+	// Returns false to indicate that this checkpoint's transform (position, rotation, scale) should not be loaded from save data
+	// Checkpoints remain at their original level-placed positions regardless of save state
+	virtual bool ShouldLoadTransform_Implementation() override { return false; };
+
+	// Loads the checkpoint's saved state from disk, restoring the bReached flag and updating visual effects accordingly
+	virtual void LoadActor_Implementation() override;
+	
+	/* end Save Interface */
+	
 	// Boolean flag indicating whether this checkpoint has been reached by the player, automatically saved to disk
 	// BlueprintReadOnly: Allows Blueprint scripts to read this value but not modify it (modification handled in C++)
 	// SaveGame: Marks this property to be automatically serialized and saved when the game is saved

@@ -47,7 +47,10 @@ public:
 	void SaveInGameProgressData(ULoadScreenSaveGame* SaveObject);
 	
 	// Saves the current state of the specified world (including all actors and their properties) to the in-game save data
-	void SaveWorldState(UWorld* World);
+	void SaveWorldState(UWorld* World) const;
+	
+	// Loads and restores the previously saved state of the specified world (including all actors and their properties) from the in-game save data
+	void LoadWorldState(UWorld* World) const;
 	
 	// Initiates level travel to the map associated with the provided save slot by looking up the map name in the Maps dictionary and opening the corresponding level
 	void TravelToMap(UMVVM_LoadSlot* Slot);

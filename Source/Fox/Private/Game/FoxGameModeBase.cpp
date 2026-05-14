@@ -4,6 +4,7 @@
 #include "Game/FoxGameModeBase.h"
 
 #include "EngineUtils.h"
+#include "Fox/FoxLogChannels.h"
 #include "Game/FoxGameInstance.h"
 #include "Game/LoadScreenSaveGame.h"
 #include "GameFramework/PlayerStart.h"
@@ -121,7 +122,7 @@ void AFoxGameModeBase::SaveInGameProgressData(ULoadScreenSaveGame* SaveObject)
 	UGameplayStatics::SaveGameToSlot(SaveObject, InGameLoadSlotName, InGameLoadSlotIndex);
 }
 
-void AFoxGameModeBase::SaveWorldState(UWorld* World)
+void AFoxGameModeBase::SaveWorldState(UWorld* World) const
 {
 	// Retrieve the current map's full name from the World object to identify which level's state we're saving
 	FString WorldName = World->GetMapName();
@@ -253,6 +254,108 @@ void AFoxGameModeBase::SaveWorldState(UWorld* World)
 		// Write the updated save game object to persistent storage at the specified slot, preserving all changes made 
 		// during this save operation including the updated world state
 		UGameplayStatics::SaveGameToSlot(SaveGame, FoxGI->LoadSlotName, FoxGI->LoadSlotIndex);
+	}
+}
+
+void AFoxGameModeBase::LoadWorldState(UWorld* World) const
+{
+	// Retrieve the current map's full name from the World object to identify which level's saved state to load
+	// GetMapName() returns the map's complete internal path (e.g., "/Game/Maps/UEDPIE_0_MainLevel" in PIE or "/Game/Maps/MainLevel" in packaged builds)
+	// This string is used to match against saved map data to find and restore the correct level state from the save file
+	FString WorldName = World->GetMapName();
+
+	// Remove the streaming levels prefix from the map name to get the clean asset name for matching against saved map data
+	WorldName.RemoveFromStart(World->StreamingLevelsPrefix);
+
+	// Cast the game instance to UFoxGameInstance to access the LoadSlotName and LoadSlotIndex properties that identify which save file to load from
+	UFoxGameInstance* FoxGI = Cast<UFoxGameInstance>(GetGameInstance());
+
+	// Validate that the cast succeeded; if FoxGI is null, this will crash the program to catch configuration errors early
+	check(FoxGI);
+
+	// Check if a save game file exists at the specified slot name and index before attempting to load it to prevent errors
+	if (UGameplayStatics::DoesSaveGameExist(FoxGI->LoadSlotName, FoxGI->LoadSlotIndex))
+	{
+		// Load the save game data from disk and cast it to ULoadScreenSaveGame type to access our custom save data properties and world state
+		ULoadScreenSaveGame* SaveGame = Cast<ULoadScreenSaveGame>(UGameplayStatics::LoadGameFromSlot(FoxGI->LoadSlotName, FoxGI->LoadSlotIndex));
+
+		// Check if the save game load or cast failed, resulting in a null pointer that would cause crashes if we continue processing
+		if (SaveGame == nullptr)
+		{
+			// Log an error message to the LogFox category indicating that the save slot failed to load, helping with debugging save system issues
+			UE_LOG(LogFox, Error, TEXT("Failed to load slot"));
+
+			// Exit the function early to prevent attempting to process invalid save data that could cause crashes or corrupt game state
+			return;
+		}
+		// Iterate through all actors currently present in the world using FActorIterator to find actors that need to be saved
+		// FActorIterator is an Unreal Engine helper class that provides a convenient way to iterate over all actors in a world
+		// The for loop pattern works as follows:
+		//   - FActorIterator It(World): This calls the FActorIterator constructor to create an iterator object named 'It',
+		//     passing the World pointer as a parameter to initialize the iterator with the given world, starting at the first actor.
+		//     This is standard C++ Direct Initialization. It is exactly the same as writing: FActorIterator It = FActorIterator(World);
+		//   - It: Checks if the iterator is valid (returns true if there are more actors to process, false when done)
+		//   - ++It: Advances the iterator to the next actor in the world after each loop iteration
+		for (FActorIterator It(World); It; ++It)
+		{
+			// Dereference the actor iterator using the * operator to obtain the actual AActor pointer for the current actor being processed
+			// Dereferencing is the process of accessing the value that a pointer or iterator points to
+			// FActorIterator overloads the * operator to return the AActor* that the iterator currently points to
+			// This converts the iterator object into the actual actor pointer we can work with
+			// Similar to dereferencing a raw pointer: if you have AActor* ptr, then *ptr gives you the AActor object itself
+			// Here, *It calls FActorIterator::operator*() which returns the AActor* at the iterator's current position
+			AActor* Actor = *It;
+
+			// Skip this actor and continue to the next iteration of the loop if it doesn't implement USaveInterface, 
+			// as only actors with this interface can be loaded from save data
+			if (!Actor->Implements<USaveInterface>()) continue;
+
+			// Iterate through all saved actors from this map's saved state to find the matching actor by name and restore its serialized data
+			for (FSavedActor SavedActor : SaveGame->GetSavedMapWithMapName(WorldName).SavedActors)
+			{
+				// Check if the current saved actor's name matches the world actor's name to ensure we're restoring the correct actor's state
+				if (SavedActor.ActorName == Actor->GetFName())
+				{
+					// Check if this actor should have its transform (position, rotation, scale) restored from save data by calling the save interface method
+					if (ISaveInterface::Execute_ShouldLoadTransform(Actor))
+					{
+						// Restore the actor's world transform from the saved transform data, repositioning it to its saved location
+						Actor->SetActorTransform(SavedActor.Transform);
+					}
+					// Create a memory reader archive that will deserialize the actor's saved property data from the SavedActor.Bytes TArray<uint8>
+					// FMemoryReader is an Unreal Engine archive class that reads serialized data directly from a byte array in memory
+					// instead of reading from a file on disk. It implements the FArchive interface and provides functionality to convert
+					// a linear sequence of bytes back into C++ objects and their properties, restoring the actor's saved state.
+					FMemoryReader MemoryReader(SavedActor.Bytes);
+
+					// Wrap the memory reader in an archive that deserializes UObject references and FNames from strings back into object pointers.
+					// This is the inverse of the serialization process used in SaveWorldState(). During saving, UObject references were converted
+					// to string paths because raw pointers are invalid after the game exits. During loading, this proxy archive resolves those
+					// string paths back into valid UObject pointers by searching for or loading the referenced objects.
+					// The second parameter (true) enables loading objects from disk if they cannot be found in memory, ensuring all references
+					// can be restored even if the objects haven't been loaded into memory yet.
+					FObjectAndNameAsStringProxyArchive Archive(MemoryReader, true);
+
+					// Set the archive's save game flag to true to mark this as a save game archive, which tells Unreal Engine
+					// to only deserialize UPROPERTY members that have the SaveGame specifier, matching the behavior used during saving.
+					// This ensures that only properties marked with SaveGame are restored from the byte array, while runtime-only
+					// or derived properties are left unchanged, maintaining consistency with the SaveWorldState() serialization process.
+					Archive.ArIsSaveGame = true;
+
+					// Deserialize the actor's properties from the archive's byte array back into the actor's member variables,
+					// restoring all saved state data (health, inventory, etc.) that was serialized in SaveWorldState().
+					// This converts the binary bytes back into typed C++ variables by reading the byte stream and reconstructing
+					// each property's value, effectively reversing the serialization process to restore the actor to its saved state.
+					Actor->Serialize(Archive); // converts binary bytes back into variables
+
+					// Call the actor's custom post-load initialization function through the SaveInterface to perform any additional
+					// setup or processing needed after the actor's properties have been deserialized from the save data.
+					// This allows the actor to react to being loaded (e.g., updating UI, recalculating derived values, or re-establishing
+					// runtime connections) and ensures the actor is in a fully functional state after restoration from save data.
+					ISaveInterface::Execute_LoadActor(Actor);
+				}
+			}
+		}
 	}
 }
 
