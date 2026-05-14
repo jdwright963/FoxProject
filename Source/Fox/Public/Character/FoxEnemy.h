@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Character/FoxCharacterBase.h"
 #include "Interaction/EnemyInterface.h"
+#include "Interaction/HighlightInterface.h"
 #include "UI/WidgetController/OverlayWidgetController.h"
 #include "FoxEnemy.generated.h"
 
@@ -15,7 +16,7 @@ class UWidgetComponent;
  * 
  */
 UCLASS()
-class FOX_API AFoxEnemy : public AFoxCharacterBase, public IEnemyInterface
+class FOX_API AFoxEnemy : public AFoxCharacterBase, public IEnemyInterface, public IHighlightInterface
 {
 	GENERATED_BODY()
 	
@@ -27,10 +28,10 @@ public:
 	// This is called when the enemy is possessed by a controller
 	virtual void PossessedBy(AController* NewController) override;
 	
-	/** Enemy Interface */
+	/** Highlight Interface */
 	virtual void HighlightActor() override;
 	virtual void UnHighlightActor() override;
-	/** end Enemy Interface */
+	/** end Highlight Interface */
 	
 	/**	Combat Interface */
 	

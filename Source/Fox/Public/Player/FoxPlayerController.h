@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "FoxPlayerController.generated.h"
 
+class IHighlightInterface;
 class AMagicCircle;
 class UNiagaraSystem;
 class UDamageTextComponent;
@@ -16,7 +17,6 @@ class UFoxInputConfig;
 class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
-class IEnemyInterface;
 
 /**
  * 
@@ -72,8 +72,19 @@ private:
 	
 	void CursorTrace();
 	
-	TScriptInterface<IEnemyInterface> LastActor;
-	TScriptInterface<IEnemyInterface> ThisActor;
+	// A dual-pointer container that stores both the underlying UObject and its 
+	// IHighlightInterface implementation. This ensures the actor is protected 
+	// from Garbage Collection while providing direct, high-performance access 
+	// to interface methods without the need for repeated casting.
+	// Stores the actor that was highlighted in the previous cursor trace tick, used to unhighlight it when the cursor moves away
+	TScriptInterface<IHighlightInterface> LastActor;
+
+	// A dual-pointer container that stores both the underlying UObject and its 
+	// IHighlightInterface implementation. This ensures the actor is protected 
+	// from Garbage Collection while providing direct, high-performance access 
+	// to interface methods without the need for repeated casting.
+	// Stores the actor currently under the cursor in this frame's trace, used to highlight it if it implements the HighlightInterface
+	TScriptInterface<IHighlightInterface> ThisActor;
 	
 	FHitResult CursorHit;
 	

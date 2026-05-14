@@ -23,10 +23,6 @@ class FOX_API IEnemyInterface
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 	
-	// = 0 makes this a pure virtual function. Which means these functions must be overridden make a child of this class.
-	virtual void HighlightActor() = 0;
-	virtual void UnHighlightActor() = 0;
-	
 	// Blueprint Native Events for an interface allows us to create an event that can be implemented in and called from 
 	// blueprints. These should not be marked virtual and they auto generate an implementation version 
 	// (SetCombatTarget_Implementation) that can be overridden. This is a function that sets the combat target for the

@@ -17,6 +17,7 @@
 #include "GameFramework/Character.h"
 #include "Input/FoxInputComponent.h"
 #include "Interaction/EnemyInterface.h"
+#include "Interaction/HighlightInterface.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "UI/Widget/DamageTextComponent.h"
 
