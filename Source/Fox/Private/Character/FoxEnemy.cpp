@@ -95,6 +95,22 @@ AFoxEnemy::AFoxEnemy()
 	// always stays positioned correctly above the enemy even as the enemy moves around the level.
 	HealthBar->SetupAttachment(GetRootComponent());
 	
+	// Set the custom depth stencil value to CUSTOM_DEPTH_RED, which tells the post-process material to render this mesh with a red highlight
+	GetMesh()->SetCustomDepthStencilValue(CUSTOM_DEPTH_RED);
+
+	// Force the rendering system to immediately update this mesh's render state to reflect the new custom depth stencil value we just set.
+	// Without calling MarkRenderStateDirty(), the engine might not recognize that the stencil value has changed until the next frame or
+	// when something else triggers a render state update. This ensures the highlight effect is applied immediately and consistently.
+	GetMesh()->MarkRenderStateDirty();
+	
+	// Set the custom depth stencil value to CUSTOM_DEPTH_RED for the weapon, ensuring it matches the character's highlight color
+	Weapon->SetCustomDepthStencilValue(CUSTOM_DEPTH_RED);
+	
+	// Force the rendering system to immediately update this weapon mesh's render state to reflect the new custom depth stencil value we just set.
+	// Without calling MarkRenderStateDirty(), the engine might not recognize that the stencil value has changed until the next frame or
+	// when something else triggers a render state update. This ensures the highlight effect is applied immediately and consistently.
+	Weapon->MarkRenderStateDirty();
+	
 	// Initialize the BaseWalkSpeed inherited variable to 250 Unreal units per second, which serves as the default movement speed
 	// for this enemy character. This value is applied to the CharacterMovementComponent's MaxWalkSpeed in BeginPlay() and
 	// acts as the "normal" walking speed that the enemy returns to after temporary speed modifications (such as being 
@@ -200,14 +216,8 @@ void AFoxEnemy::HighlightActor_Implementation()
 	// Enable custom depth rendering for the character's skeletal mesh, allowing it to be rendered to the Custom Depth buffer
 	GetMesh()->SetRenderCustomDepth( true);
 	
-	// Set the custom depth stencil value to CUSTOM_DEPTH_RED, which tells the post-process material to render this mesh with a red highlight
-	GetMesh()->SetCustomDepthStencilValue(CUSTOM_DEPTH_RED);
-	
 	// Enable custom depth rendering for the weapon mesh, allowing it to be rendered to the Custom Depth buffer
 	Weapon->SetRenderCustomDepth(true);
-	
-	// Set the custom depth stencil value to CUSTOM_DEPTH_RED for the weapon, ensuring it matches the character's highlight color
-	Weapon->SetCustomDepthStencilValue(CUSTOM_DEPTH_RED);
 }
 
 void AFoxEnemy::UnHighlightActor_Implementation()
@@ -217,6 +227,11 @@ void AFoxEnemy::UnHighlightActor_Implementation()
 	
 	// Disable custom depth rendering for the weapon mesh, which removes the highlight effect from the weapon
 	Weapon->SetRenderCustomDepth(false);
+}
+
+void AFoxEnemy::SetMoveToLocation_Implementation(FVector& OutDestination)
+{
+	// Do not change OutDestination
 }
 
 int32 AFoxEnemy::GetPlayerLevel_Implementation()

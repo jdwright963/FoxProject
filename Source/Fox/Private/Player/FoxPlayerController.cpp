@@ -530,6 +530,21 @@ void AFoxPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
 		// Checks if this was a short press and the pawn exists
 		if (FollowTime <= ShortPressThreshold && ControlledPawn)
 		{
+			// Checks if ThisActor is valid and implements the HighlightInterface, indicating it's an interactable object
+			// like a checkpoint that can receive move-to location data
+			if (IsValid(ThisActor) && ThisActor->Implements<UHighlightInterface>())
+			{
+				// Calls the SetMoveToLocation function on the actor implementing HighlightInterface, passing 
+				// CachedDestination to set the target location for movement or interaction
+				IHighlightInterface::Execute_SetMoveToLocation(ThisActor, CachedDestination);
+			}
+			// Checks if the ASC exists and the Player_Block_InputPressed tag is not present, allowing visual feedback for clicks when input is not blocked
+			else if (GetASC() && !GetASC()->HasMatchingGameplayTag(FFoxGameplayTags::Get().Player_Block_InputPressed))
+			{
+				// Spawns a Niagara particle system at the clicked location to provide visual feedback to the player indicating where they clicked on the ground
+				UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ClickNiagaraSystem, CachedDestination);
+			}
+			
 			// Calculates a navigation path from the controlled pawn's current location to the clicked destination
 			if (UNavigationPath* NavPath = UNavigationSystemV1::FindPathToLocationSynchronously(this, ControlledPawn->GetActorLocation(), CachedDestination))
 			{
@@ -551,61 +566,6 @@ void AFoxPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
 					// Enables auto-run behavior so the character will follow the spline path
 					bAutoRunning = true;
 				}
-			}
-			
-			/*
-			   Checks if the Ability System Component exists and if click visual effects are not blocked by gameplay tags.
-
-			   Breaking down this line:
-			   1. GetASC(): Retrieves the cached UFoxAbilitySystemComponent pointer (or retrieves and caches it if not yet cached).
-			      Returns nullptr if the controlled pawn doesn't have an ASC. This null check is necessary to prevent crashes
-			      when attempting to call methods on a non-existent ASC.
-
-			   2. &&: Logical AND operator with short-circuit evaluation. If GetASC() returns nullptr (false), the right side
-			      of the expression is never evaluated, preventing a null pointer dereference when calling HasMatchingGameplayTag.
-
-			   3. !GetASC()->HasMatchingGameplayTag(): The negation operator (!) inverts the boolean result from HasMatchingGameplayTag.
-			      This means we only proceed if the blocking tag is NOT present on the ASC, allowing the visual feedback effect
-			      to spawn when input is not blocked.
-
-			   4. FFoxGameplayTags::Get().Player_Block_InputPressed: Retrieves the native C++ gameplay tag that indicates input
-			      pressed events should be blocked. When this tag is NOT present on the ASC, it means the player is allowed to
-			      see visual feedback for their click actions. This provides a centralized way to control whether click visual
-			      effects should appear based on game state (e.g., during cutscenes, UI interactions, or crowd control effects,
-			      we might want to suppress these visual indicators).
-
-			   If both conditions are true (ASC exists AND the blocking tag is NOT present), the code proceeds to spawn the
-			   click particle effect, providing visual confirmation of the player's click location. If either condition is
-			   false, the visual effect is suppressed.
-			 */
-			if (GetASC() && !GetASC()->HasMatchingGameplayTag(FFoxGameplayTags::Get().Player_Block_InputPressed))
-			{
-				/*
-				   Spawns a Niagara particle system at the clicked destination for visual feedback.
-	
-				   Breaking down this line:
-				   1. UNiagaraFunctionLibrary::SpawnSystemAtLocation(): Static utility function that instantiates and
-					  plays a Niagara particle system at a specified world location. This is a fire-and-forget effect
-					  that plays once and automatically cleans itself up when the particle system completes.
-	
-				   2. this (first parameter - WorldContextObject): The world context object used to determine which
-					  UWorld to spawn the particle system in. Passing 'this' (the player controller) provides the
-					  necessary world context for the spawning operation.
-	
-				   3. ClickNiagaraSystem (second parameter - SystemTemplate): The UNiagaraSystem asset to spawn,
-					  configured in the player controller blueprint. This defines the visual appearance of the click
-					  feedback effect (e.g., a ground ripple, sparkle, or other indicator showing where the player
-					  clicked).
-	
-				   4. CachedDestination (third parameter - Location): The FVector world position where the particle
-					  system should be spawned. This is the final destination point calculated from the navigation
-					  path, providing visual confirmation to the player of where their character will run to.
-	
-				   This provides immediate visual feedback for the auto-run destination when the player performs a
-				   short click on the ground, helping players understand where their character will move before the
-				   movement actually begins.
-				 */
-				UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ClickNiagaraSystem, CachedDestination);	
 			}
 		}
 		// Resets the follow time counter to zero now that the left mouse button has been released

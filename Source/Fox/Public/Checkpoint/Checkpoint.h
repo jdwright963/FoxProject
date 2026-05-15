@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Fox/Fox.h"
 #include "GameFramework/PlayerStart.h"
+#include "Interaction/HighlightInterface.h"
 #include "Interaction/SaveInterface.h"
 #include "Checkpoint.generated.h"
 
@@ -12,7 +14,7 @@ class USphereComponent;
  * 
  */
 UCLASS()
-class FOX_API ACheckpoint : public APlayerStart, public ISaveInterface
+class FOX_API ACheckpoint : public APlayerStart, public ISaveInterface, public IHighlightInterface
 {
 	GENERATED_BODY()
 public:
@@ -45,6 +47,32 @@ protected:
 
 	// Called when the checkpoint actor begins play in the level, used to initialize components and bind overlap events
 	virtual void BeginPlay() override;
+	
+	/* Highlight Interface */
+
+	// Sets the destination location for player movement when this checkpoint is clicked, directing the player to the 
+	// checkpoint's MoveToComponent position
+	virtual void SetMoveToLocation_Implementation(FVector& OutDestination) override;
+
+	// Applies visual highlighting effects to the checkpoint mesh using custom depth stencil rendering to indicate it 
+	// can be interacted with
+	virtual void HighlightActor_Implementation() override;
+
+	// Removes visual highlighting effects from the checkpoint mesh by disabling custom depth stencil rendering when no
+	// longer targeted
+	virtual void UnHighlightActor_Implementation() override;
+
+	/* end Highlight Interface */
+
+	// Scene component that defines the exact world position where the player character should navigate to when clicking
+	// on this checkpoint, allowing precise control over the final destination point separate from the checkpoint's root location
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<USceneComponent> MoveToComponent;
+
+	// Custom depth stencil value used for visual highlighting effects when the checkpoint is targeted, defaults to 
+	// CUSTOM_DEPTH_TAN to render the checkpoint with a tan-colored outline via post-process custom depth rendering
+	UPROPERTY(EditDefaultsOnly)
+	int32 CustomDepthStencilOverride = CUSTOM_DEPTH_TAN;
 
 	// Blueprint implementable event that is called when the checkpoint is reached by the player, allowing blueprints to handle visual feedback using the provided dynamic material instance
 	UFUNCTION(BlueprintImplementableEvent)
@@ -52,12 +80,13 @@ protected:
 
 	// Handles the visual glow effects for the checkpoint by creating and configuring a dynamic material instance for the checkpoint mesh
 	void HandleGlowEffects();
-private:
-
+	
 	// The static mesh component that represents the visual geometry of the checkpoint in the game world
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> CheckpointMesh;
 
+private:
+	
 	// The sphere collision component used to detect when the player character overlaps with the checkpoint trigger area
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<USphereComponent> Sphere;

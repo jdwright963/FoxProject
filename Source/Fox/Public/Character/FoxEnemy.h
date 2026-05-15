@@ -36,6 +36,11 @@ public:
 	// Function to remove visual highlighting from this actor when it's no longer targeted or hovered over
 	virtual void UnHighlightActor_Implementation() override;
 	
+	// Function to set the destination location for AI movement. This is called when the player clicks on this enemy
+	// to command AI characters to move to a specific location relative to this actor. The implementation has no code 
+	// since we do not want the move to location to be overridden for this actor.
+	virtual void SetMoveToLocation_Implementation(FVector& OutDestination) override;
+	
 	/** end Highlight Interface */
 	
 	/**	Combat Interface */

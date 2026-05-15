@@ -26,6 +26,14 @@ ACheckpoint::ACheckpoint(const FObjectInitializer& ObjectInitializer)
 	
 	// Sets the mesh to block all collision channels by default, making it a solid physical object
 	CheckpointMesh->SetCollisionResponseToAllChannels(ECR_Block);
+	
+	// Sets the custom depth stencil value used by post-processing materials to apply outline/highlight effects when 
+	// the checkpoint is rendered with custom depth enabled
+	CheckpointMesh->SetCustomDepthStencilValue(CustomDepthStencilOverride);
+
+	// Forces the rendering system to update the mesh's visual state immediately, ensuring the custom depth stencil 
+	// value is applied to the rendered output
+	CheckpointMesh->MarkRenderStateDirty();
 
 	// Creates the sphere component that acts as a trigger volume to detect when the player enters the checkpoint area
 	Sphere = CreateDefaultSubobject<USphereComponent>("Sphere");
@@ -41,6 +49,12 @@ ACheckpoint::ACheckpoint(const FObjectInitializer& ObjectInitializer)
 	
 	// Specifically enables overlap events with the Pawn channel to detect when the player character enters the checkpoint trigger
 	Sphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	
+	// Creates a scene component that defines the precise location where the player character should move/teleport when interacting with this checkpoint
+	MoveToComponent = CreateDefaultSubobject<USceneComponent>("MoveToComponent");
+
+	// Attaches the move-to location component to the actor's root, allowing level designers to independently position the teleport destination relative to the checkpoint
+	MoveToComponent->SetupAttachment(GetRootComponent());
 }
 
 void ACheckpoint::LoadActor_Implementation()
@@ -90,6 +104,27 @@ void ACheckpoint::BeginPlay()
 	Sphere->OnComponentBeginOverlap.AddDynamic(this, &ACheckpoint::OnSphereOverlap);
 }
 
+void ACheckpoint::SetMoveToLocation_Implementation(FVector& OutDestination)
+{
+	// Retrieves the world-space location of the MoveToComponent and assigns it to the output parameter, providing the 
+	// exact destination where the player should teleport when interacting with this checkpoint
+	OutDestination = MoveToComponent->GetComponentLocation();
+}
+
+void ACheckpoint::HighlightActor_Implementation()
+{
+	// Enables custom depth rendering for the checkpoint mesh, allowing post-process materials to apply visual highlight 
+	// effects like outlines when the player targets or hovers over this checkpoint
+	CheckpointMesh->SetRenderCustomDepth(true);
+}
+
+void ACheckpoint::UnHighlightActor_Implementation()
+{
+	// Disables custom depth rendering for the checkpoint mesh, removing any visual highlight effects like outlines when
+	// the player no longer targets or hovers over this checkpoint
+	CheckpointMesh->SetRenderCustomDepth(false);
+}
+
 void ACheckpoint::HandleGlowEffects()
 {
 	// Disables collision on the sphere trigger to prevent the player from activating the checkpoint multiple times after it has been reached
@@ -101,6 +136,6 @@ void ACheckpoint::HandleGlowEffects()
 	// Applies the newly created dynamic material instance to the mesh's first material slot, replacing the static material with the dynamic version
 	CheckpointMesh->SetMaterial(0, DynamicMaterialInstace);
 
-	// Calls the blueprint-implementable CheckpointReached event, passing the dynamic material instance to enable visual glow animations and effects
+	// Calls the blueprint-implementable CheckpointReached event, passing the dynamic material instance to enable visual glow animations and effects defined in Blueprint subclasses
 	CheckpointReached(DynamicMaterialInstace);
 }
