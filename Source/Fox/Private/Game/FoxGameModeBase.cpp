@@ -122,7 +122,7 @@ void AFoxGameModeBase::SaveInGameProgressData(ULoadScreenSaveGame* SaveObject)
 	UGameplayStatics::SaveGameToSlot(SaveObject, InGameLoadSlotName, InGameLoadSlotIndex);
 }
 
-void AFoxGameModeBase::SaveWorldState(UWorld* World) const
+void AFoxGameModeBase::SaveWorldState(UWorld* World, const FString& DestinationMapAssetName) const
 {
 	// Retrieve the current map's full name from the World object to identify which level's state we're saving
 	FString WorldName = World->GetMapName();
@@ -142,6 +142,16 @@ void AFoxGameModeBase::SaveWorldState(UWorld* World) const
 	// Load the save game data for the current slot and enter this block if the load was successful
 	if (ULoadScreenSaveGame* SaveGame = GetSaveSlotData(FoxGI->LoadSlotName, FoxGI->LoadSlotIndex))
 	{
+		// Check if a destination map asset name was provided (non-empty string) to determine if we need to update the 
+		// save game's map references for cross-level travel
+		if (DestinationMapAssetName != FString(""))
+		{
+			// Store the destination map's asset name in the save game to track which level the player will be traveling to
+			SaveGame->MapAssetName = DestinationMapAssetName;
+			
+			// Convert the destination map asset name to its human-readable display name and store it in the save game for UI purposes
+			SaveGame->MapName = GetMapNameFromMapAssetName(DestinationMapAssetName);
+		}
 		// Check if this world/map has not been saved before in the save game data
 		if (!SaveGame->HasMap(WorldName))
 		{
@@ -370,6 +380,22 @@ void AFoxGameModeBase::TravelToMap(UMVVM_LoadSlot* Slot)
 	// Open the level associated with this save slot by looking up the map's soft object pointer in the Maps dictionary using the map name,
 	// then travel to that level (FindChecked will crash if the map name doesn't exist in the dictionary, ensuring map configuration errors are caught)
 	UGameplayStatics::OpenLevelBySoftObjectPtr(Slot, Maps.FindChecked(Slot->GetMapName()));
+}
+
+FString AFoxGameModeBase::GetMapNameFromMapAssetName(const FString& MapAssetName) const
+{
+	// Iterate through all entries in the Maps dictionary (TMap)
+	for (auto& Map : Maps)
+	{
+		// Check if the current map entry's soft object path asset name matches the requested map asset name by converting the soft object pointer to a path and extracting its asset name
+		if (Map.Value.ToSoftObjectPath().GetAssetName() == MapAssetName)
+		{
+			// Return the map's key (the human-readable display name) since we found a matching map asset name in the dictionary
+			return Map.Key;
+		}
+	}
+	// Return an empty string if no map in the Maps dictionary had an asset name matching the requested MapAssetName parameter
+	return FString();
 }
 
 AActor* AFoxGameModeBase::ChoosePlayerStart_Implementation(AController* Player)

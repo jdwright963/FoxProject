@@ -46,8 +46,10 @@ public:
 	// Saves the current in-game progress data to disk using the slot name and index stored in the provided save object
 	void SaveInGameProgressData(ULoadScreenSaveGame* SaveObject);
 	
-	// Saves the current state of the specified world (including all actors and their properties) to the in-game save data
-	void SaveWorldState(UWorld* World) const;
+	// Serializes and saves the current state of all actors in the specified world (including their properties and transforms) 
+	// to the in-game save data. The optional DestinationMapAssetName parameter is used by MapEntrance actors (which inherit 
+	// from Checkpoint) to specify which map should be saved as the new starting map when the player travels to a different level
+	void SaveWorldState(UWorld* World, const FString& DestinationMapAssetName = FString("")) const;
 	
 	// Loads and restores the previously saved state of the specified world (including all actors and their properties) from the in-game save data
 	void LoadWorldState(UWorld* World) const;
@@ -75,6 +77,9 @@ public:
 	// A dictionary (map) that maps map name strings to their corresponding world asset soft pointers, enabling map lookup and travel by name
 	UPROPERTY(EditDefaultsOnly)
 	TMap<FString, TSoftObjectPtr<UWorld>> Maps;
+	
+	// Extracts and returns the simple map name from a full map asset path string (e.g., converts "/Game/Maps/Level1" to "Level1")
+	FString GetMapNameFromMapAssetName(const FString& MapAssetName) const;
 	
 	// Overridden implementation of a blueprint native event from the parent class that selects a player spawn 
 	// point by searching for a PlayerStart actor tagged with "TheTag",

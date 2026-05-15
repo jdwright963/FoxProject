@@ -94,8 +94,6 @@ protected:
 	// The static mesh component that represents the visual geometry of the checkpoint in the game world
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> CheckpointMesh;
-
-private:
 	
 	// The sphere collision component used to detect when the player character overlaps with the checkpoint trigger area
 	UPROPERTY(VisibleAnywhere)

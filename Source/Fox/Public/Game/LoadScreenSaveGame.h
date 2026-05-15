@@ -153,6 +153,11 @@ public:
 	// The name identifier of the level/map associated with this save slot, used to determine which map to load when the player continues from this save
 	UPROPERTY()
 	FString MapName = FString("Default Map Name");
+
+	// The asset path identifier of the map associated with this save slot (e.g., "/Game/Maps/Level1"), used to uniquely identify
+	// and load the correct map asset when restoring the game from this save
+	UPROPERTY()
+	FString MapAssetName = FString("Default Map Asset Name");
 	
 	// The tag identifier used to select which PlayerStart actor to spawn the player at when loading into a level from this save slot
 	UPROPERTY()
