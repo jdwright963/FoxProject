@@ -34,14 +34,22 @@ public:
 	/* end Save Interface */
 	
 	// Boolean flag indicating whether this checkpoint has been reached by the player, automatically saved to disk
-	// BlueprintReadOnly: Allows Blueprint scripts to read this value but not modify it (modification handled in C++)
+	// BlueprintReadOnly: Allows Blueprint scripts to read this value and modify it
 	// SaveGame: Marks this property to be automatically serialized and saved when the game is saved
-	UPROPERTY(BlueprintReadOnly, SaveGame)
+	UPROPERTY(BlueprintReadWrite, SaveGame)
 	bool bReached = false;
 
+	// Editor-configurable flag that controls whether the OnSphereOverlap callback should be bound to the sphere component's
+	// overlap events during BeginPlay. This allows us to implement a different OnSphereOverlap function
+	// in some blueprints that are derived from this class that require custom overlap handling but use the OnSphereOverlap function
+	// from this class for other blueprints that are derived from this class.
+	UPROPERTY(EditAnywhere)
+	bool bBindOverlapCallback = true;
+	
 protected:
 
-	// Callback function triggered when an actor overlaps with the checkpoint's sphere collision component, used to detect when the player reaches the checkpoint
+	// Callback function triggered when an actor overlaps with the checkpoint's sphere collision component, used to 
+	// detect when the player reaches the checkpoint
 	UFUNCTION()
 	virtual void OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
@@ -55,7 +63,7 @@ protected:
 	virtual void SetMoveToLocation_Implementation(FVector& OutDestination) override;
 
 	// Applies visual highlighting effects to the checkpoint mesh using custom depth stencil rendering to indicate it 
-	// can be interacted with
+	// can be interacted with 
 	virtual void HighlightActor_Implementation() override;
 
 	// Removes visual highlighting effects from the checkpoint mesh by disabling custom depth stencil rendering when no
@@ -74,11 +82,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly)
 	int32 CustomDepthStencilOverride = CUSTOM_DEPTH_TAN;
 
-	// Blueprint implementable event that is called when the checkpoint is reached by the player, allowing blueprints to handle visual feedback using the provided dynamic material instance
+	// Blueprint implementable event that is called when the checkpoint is reached by the player, allowing blueprints to
+	// handle visual feedback using the provided dynamic material instance
 	UFUNCTION(BlueprintImplementableEvent)
-	void CheckpointReached(UMaterialInstanceDynamic* DynamicMaterialInstance);\
+	void CheckpointReached(UMaterialInstanceDynamic* DynamicMaterialInstance);
 
 	// Handles the visual glow effects for the checkpoint by creating and configuring a dynamic material instance for the checkpoint mesh
+	UFUNCTION(BlueprintCallable)
 	void HandleGlowEffects();
 	
 	// The static mesh component that represents the visual geometry of the checkpoint in the game world

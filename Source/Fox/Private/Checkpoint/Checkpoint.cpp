@@ -99,9 +99,15 @@ void ACheckpoint::BeginPlay()
 {
 	// Calls the parent class (AActor) BeginPlay implementation to ensure proper initialization of base actor functionality when the game starts
 	Super::BeginPlay();
-
-	// Binds the OnSphereOverlap function to the sphere component's overlap event, enabling detection when the player enters the checkpoint trigger volume
-	Sphere->OnComponentBeginOverlap.AddDynamic(this, &ACheckpoint::OnSphereOverlap);
+	
+	// Checks if overlap callback binding is enabled, this allows us to implement a different OnSphereOverlap function
+	// in some blueprints that are derived from this class that require custom overlap handling but use the OnSphereOverlap function
+	// from this class for other blueprints that are derived from this class.
+	if (bBindOverlapCallback)
+	{
+		// Binds the OnSphereOverlap function to the sphere component's overlap event, enabling detection when the player enters the checkpoint trigger volume
+		Sphere->OnComponentBeginOverlap.AddDynamic(this, &ACheckpoint::OnSphereOverlap);
+	}
 }
 
 void ACheckpoint::SetMoveToLocation_Implementation(FVector& OutDestination)
@@ -113,9 +119,14 @@ void ACheckpoint::SetMoveToLocation_Implementation(FVector& OutDestination)
 
 void ACheckpoint::HighlightActor_Implementation()
 {
-	// Enables custom depth rendering for the checkpoint mesh, allowing post-process materials to apply visual highlight 
-	// effects like outlines when the player targets or hovers over this checkpoint
-	CheckpointMesh->SetRenderCustomDepth(true);
+	// Only applies highlighting effects (when cursor is over checkpoint) to checkpoints that haven't been reached yet, 
+	// preventing visual clutter and clearly indicating which checkpoints are still available for interaction
+	if (!bReached)
+	{
+		// Enables custom depth rendering for the checkpoint mesh, allowing post-process materials to apply visual highlight 
+		// effects like outlines when the player targets or hovers over this checkpoint
+		CheckpointMesh->SetRenderCustomDepth(true);
+	}
 }
 
 void ACheckpoint::UnHighlightActor_Implementation()
