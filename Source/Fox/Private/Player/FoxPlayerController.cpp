@@ -257,18 +257,35 @@ void AFoxPlayerController::UpdateMagicCircleLocation()
 // We do not want the parts of this cursor trace that highlights actors in the final game this all needs to be removed
 void AFoxPlayerController::CursorTrace()
 {
+	// Checks if the ASC exists and has the Player_Block_CursorTrace tag, which blocks cursor trace processing
 	if (GetASC() && GetASC()->HasMatchingGameplayTag(FFoxGameplayTags::Get().Player_Block_CursorTrace))
 	{
-		if (LastActor) LastActor->UnHighlightActor();
-		if (ThisActor) ThisActor->UnHighlightActor();
+		// Removes highlight from the actor that was under the cursor in the previous frame
+		UnHighlightActor(LastActor);
+		
+		// Removes highlight from the actor currently under the cursor
+		UnHighlightActor(ThisActor);
+		
+		// Checks if ThisActor is valid and implements the HighlightInterface (incomplete condition statement)
+		// if (IsValid(ThisActor) && ThisActor->Implements<UHighlightInterface>())
+
+		// Clears the LastActor reference to indicate no actor was under the cursor in the previous frame
 		LastActor = nullptr;
+		
+		// Clears the ThisActor reference to indicate no actor is currently under the cursor
 		ThisActor = nullptr;
+		
+		// Returns early to prevent cursor trace processing when it's blocked by gameplay tags
 		return;
 	}
-	
+
+	// Sets the trace channel to ECC_ExcludePlayers if MagicCircle is valid, otherwise uses ECC_Visibility
 	const ECollisionChannel TraceChannel = IsValid(MagicCircle) ? ECC_ExcludePlayers : ECC_Visibility;
-	
+
+	// Performs a line trace using TraceChannel from the cursor's screen position into the world and stores the hit result in CursorHit
 	GetHitResultUnderCursor(TraceChannel, false, CursorHit);
+	
+	// Returns early if the cursor trace didn't hit any valid blocking geometry in the world
 	if (!CursorHit.IsValidBlockingHit()) return;
 	
 	/*
@@ -280,28 +297,19 @@ void AFoxPlayerController::CursorTrace()
 	   change, unhighlighting the previously hovered actor and/or highlighting the newly hovered actor.
 	 */
 	LastActor = ThisActor;
-
-	/*
-	   Retrieves the actor hit by the current frame's cursor trace and stores it in ThisActor.
-
-	   Breaking down this line:
-	   1. CursorHit.GetActor(): Extracts the AActor pointer from the FHitResult struct populated by the
-	      GetHitResultUnderCursor call above. Returns the actor that was hit by the trace, or nullptr if no actor
-	      was hit.
-
-	   2. ThisActor assignment: Stores the actor in a TScriptInterface<IEnemyInterface> wrapper rather than a raw
-	      pointer. This differs from the tutorial code which used a raw pointer. The TScriptInterface wrapper provides:
-	        - Type safety by ensuring the actor implements IEnemyInterface
-	        - Automatic interface casting without explicit Cast<>() calls
-	        - Blueprint compatibility for interface method calls
-	        - Null safety through built-in validity checks
-
-	   3. Usage context: If ThisActor contains a valid pointer (non-null and implements IEnemyInterface), a click
-	      should trigger targeting behavior for attacking/interacting with that enemy. If ThisActor is null (cursor
-	      over empty space or a non-enemy actor), a click should trigger auto-running behavior to move the character
-	      to the clicked location. This auto-run distinction will be removed in future refactoring.
-	 */
-	ThisActor = CursorHit.GetActor();
+	
+	// Checks if the actor hit by the cursor trace is valid and implements the HighlightInterface
+	if (IsValid(CursorHit.GetActor()) && CursorHit.GetActor()->Implements<UHighlightInterface>())
+	{
+		// Stores the hit actor in ThisActor since it can be highlighted
+		ThisActor = CursorHit.GetActor();
+	}
+	// The hit actor is either invalid or doesn't implement the HighlightInterface
+	else
+	{
+		// Clears ThisActor since the hit actor cannot be highlighted
+		ThisActor = nullptr;
+	}
 	
 	/*
 	   Line trace from cursor. There are several scenarios:
@@ -318,8 +326,28 @@ void AFoxPlayerController::CursorTrace()
 	 */
 	if (LastActor != ThisActor)
 	{
-		if (LastActor) LastActor->UnHighlightActor();
-		if (ThisActor) ThisActor->HighlightActor();
+		UnHighlightActor(LastActor);
+		HighlightActor(ThisActor);
+	}
+}
+
+void AFoxPlayerController::HighlightActor(AActor* InActor)
+{
+	// Checks if InActor is valid and implements the HighlightInterface before attempting to highlight it
+	if (IsValid(InActor) && InActor->Implements<UHighlightInterface>())
+	{
+		// Calls the HighlightActor implementation on the actor to apply the visual highlight effect
+		IHighlightInterface::Execute_HighlightActor(InActor);
+	}
+}
+
+void AFoxPlayerController::UnHighlightActor(AActor* InActor)
+{
+	// Checks if InActor is valid and implements the HighlightInterface before attempting to unhighlight it
+	if (IsValid(InActor) && InActor->Implements<UHighlightInterface>())
+	{
+		// Calls the UnHighlightActor implementation on the actor to remove the visual highlight effect
+		IHighlightInterface::Execute_UnHighlightActor(InActor);
 	}
 }
 
@@ -360,14 +388,15 @@ void AFoxPlayerController::AbilityInputTagPressed(FGameplayTag InputTag)
 	// button
 	if (InputTag.MatchesTagExact(FFoxGameplayTags::Get().InputTag_LMB))
 	{
-		// The following 2 lines are related to auto running and will need to be removed
-		// If ThisActor is not a null pointer then bTargeting is assigned true (a click should cause targeting). 
-        // If ThisActor is a null pointer then it is false (a click should cause auto running)
-        bTargeting = ThisActor ? true : false;
-        
-        // Set to false because we do not know if the click will be a short click or long one until it is released and this
-        // function is only for click events 
-        bAutoRunning = false;
+		if (IsValid(ThisActor))
+		{
+			TargetingStatus = ThisActor->Implements<UEnemyInterface>() ? ETargetingStatus::TargetingEnemy : ETargetingStatus::TargetingNonEnemy;
+			bAutoRunning = false;
+		}
+		else
+		{
+			TargetingStatus = ETargetingStatus::NotTargeting;
+		}
 	}
 	
 	/*
@@ -492,27 +521,34 @@ void AFoxPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
 		GetASC()->AbilityInputTagReleased(InputTag);
 	}
 	
-	// Checks if bTargeting (an enemy is being targeted) and bShiftKeyDown (the shift key is being held) are false, and
-	// since the above if statement is false, the InputTag input parameter does match the left mouse button gameplay tag.
-	// We Check for a short press to see if we should stop moving
-	if (!bTargeting && !bShiftKeyDown)
+	// Checks if we're not targeting an enemy and shift key is not held, allowing auto-run behavior to trigger
+	if (TargetingStatus != ETargetingStatus::TargetingEnemy && !bShiftKeyDown)
 	{
+		// Retrieves the pawn currently controlled by this player controller
 		const APawn* ControlledPawn = GetPawn();
+
+		// Checks if this was a short press and the pawn exists
 		if (FollowTime <= ShortPressThreshold && ControlledPawn)
 		{
+			// Calculates a navigation path from the controlled pawn's current location to the clicked destination
 			if (UNavigationPath* NavPath = UNavigationSystemV1::FindPathToLocationSynchronously(this, ControlledPawn->GetActorLocation(), CachedDestination))
 			{
+				// Removes all existing spline points to prepare for the new navigation path
 				Spline->ClearSplinePoints();
+
+				// Iterates through each point in the navigation path and adds it to the spline in world space coordinates
 				for (const FVector& PointLoc : NavPath->PathPoints)
 				{
 					Spline->AddSplinePoint(PointLoc, ESplineCoordinateSpace::World);
 				}
 				
+				// Checks if the navigation path contains at least one point
 				if (NavPath->PathPoints.Num() > 0)
 				{
-					// This was commented out before and we got no error. Even uncommenting it does not cause an error
+					// Caches the final destination point from the navigation path for auto-run distance checking
 					CachedDestination = NavPath->PathPoints[NavPath->PathPoints.Num() - 1];
-				
+
+					// Enables auto-run behavior so the character will follow the spline path
 					bAutoRunning = true;
 				}
 			}
@@ -572,8 +608,11 @@ void AFoxPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
 				UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ClickNiagaraSystem, CachedDestination);	
 			}
 		}
+		// Resets the follow time counter to zero now that the left mouse button has been released
 		FollowTime = 0.f;
-		bTargeting = false;
+
+		// Clears the targeting status since the left mouse button has been released
+		TargetingStatus = ETargetingStatus::NotTargeting;
 	}
 }
 
@@ -642,11 +681,8 @@ void AFoxPlayerController::AbilityInputTagHeld(FGameplayTag InputTag)
 		// We just tried to activate the ability (or the ASC was null pointer) so we can return early
 		return;
 	}
-	
-	// Checks if bTargeting (an enemy is being targeted) or bShiftKeyDown (the shift key is being held) are true, and
-	// since the above if statement is false, the InputTag input parameter does match the left mouse button gameplay tag.
-	// We do this because we do not want the auto running behavior that follows this if block in this case
-	if (bTargeting || bShiftKeyDown)
+	// Checks if we're targeting an enemy or shift key is held, enabling ability activation instead of auto-run
+	if (TargetingStatus == ETargetingStatus::TargetingEnemy || bShiftKeyDown)
 	{
 		// Checks if the ASC is not a null pointer
 		if (GetASC())

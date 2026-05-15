@@ -158,7 +158,7 @@ void AFoxEnemy::PossessedBy(AController* NewController)
 	FoxAIController->GetBlackboardComponent()->SetValueAsBool(FName("RangedAttacker"), CharacterClass != ECharacterClass::Warrior);
 }
 
-void AFoxEnemy::HighlightActor()
+void AFoxEnemy::HighlightActor_Implementation()
 {
 	/*
 	 * Custom Depth Rendering and Stencil System for Actor Highlighting
@@ -210,7 +210,7 @@ void AFoxEnemy::HighlightActor()
 	Weapon->SetCustomDepthStencilValue(CUSTOM_DEPTH_RED);
 }
 
-void AFoxEnemy::UnHighlightActor()
+void AFoxEnemy::UnHighlightActor_Implementation()
 {
 	// Disable custom depth rendering for the character's skeletal mesh, which removes the highlight effect
 	GetMesh()->SetRenderCustomDepth( false);

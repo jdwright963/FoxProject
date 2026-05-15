@@ -29,8 +29,13 @@ public:
 	virtual void PossessedBy(AController* NewController) override;
 	
 	/** Highlight Interface */
-	virtual void HighlightActor() override;
-	virtual void UnHighlightActor() override;
+	
+	// Function to apply visual highlighting to this actor when it's targeted or hovered over
+	virtual void HighlightActor_Implementation() override;
+	
+	// Function to remove visual highlighting from this actor when it's no longer targeted or hovered over
+	virtual void UnHighlightActor_Implementation() override;
+	
 	/** end Highlight Interface */
 	
 	/**	Combat Interface */

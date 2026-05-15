@@ -23,13 +23,11 @@ class FOX_API IHighlightInterface
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 
-	// Pure virtual function (= 0) means this function has no implementation here and MUST be overridden by any class 
-	// that implements this interface. This ensures all implementing classes provide their own highlighting behavior.
-	// This is a function that applies visual highlighting effect to the actor, typically used for cursor hover or selection feedback
-	virtual void HighlightActor() = 0;
+	// Function to apply visual highlighting to the actor that implements this interface when it's targeted or hovered over
+	UFUNCTION(BlueprintNativeEvent)
+	void HighlightActor();
 
-	// Pure virtual function (= 0) means this function has no implementation here and MUST be overridden by any class 
-	// that implements this interface. This ensures all implementing classes provide their own unhighlighting behavior.
-	// This is a function that removes visual highlighting effect from the actor when it's no longer targeted or selected
-	virtual void UnHighlightActor() = 0;
+	// Function to remove visual highlighting from the actor that implements this interface when it's no longer targeted or hovered over
+	UFUNCTION(BlueprintNativeEvent)
+	void UnHighlightActor();
 };

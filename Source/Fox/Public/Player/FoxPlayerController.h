@@ -18,6 +18,17 @@ class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
 
+// Enum representing the current targeting state of the player controller for cursor-based interactions
+// TargetingEnemy - Cursor is over an actor that implements the EnemyInterface (hostile target)
+// TargetingNonEnemy - Cursor is over an actor that doesn't implement the EnemyInterface (neutral/friendly target)
+// NotTargeting - Cursor is not over any valid targetable actor
+enum class ETargetingStatus : uint8
+{
+	TargetingEnemy,
+	TargetingNonEnemy,
+	NotTargeting
+};
+
 /**
  * 
  */
@@ -77,16 +88,28 @@ private:
 	// from Garbage Collection while providing direct, high-performance access 
 	// to interface methods without the need for repeated casting.
 	// Stores the actor that was highlighted in the previous cursor trace tick, used to unhighlight it when the cursor moves away
-	TScriptInterface<IHighlightInterface> LastActor;
+	//TScriptInterface<IHighlightInterface> LastActor;
 
 	// A dual-pointer container that stores both the underlying UObject and its 
 	// IHighlightInterface implementation. This ensures the actor is protected 
 	// from Garbage Collection while providing direct, high-performance access 
 	// to interface methods without the need for repeated casting.
 	// Stores the actor currently under the cursor in this frame's trace, used to highlight it if it implements the HighlightInterface
-	TScriptInterface<IHighlightInterface> ThisActor;
+	//TScriptInterface<IHighlightInterface> ThisActor;
+	
+	// Stores the actor that was under the cursor in the previous frame, used to unhighlight it when the cursor moves away
+	TObjectPtr<AActor> LastActor;
+
+	// Stores the actor currently under the cursor in this frame, used to highlight it if it implements the HighlightInterface
+	TObjectPtr<AActor> ThisActor;
 	
 	FHitResult CursorHit;
+	
+	// Static helper function that highlights the given actor if it implements the HighlightInterface
+	static void HighlightActor(AActor* InActor);
+
+	// Static helper function that unhighlights the given actor if it implements the HighlightInterface
+	static void UnHighlightActor(AActor* InActor);
 	
 	// Callback functions for handling ability input events (pressed, released, and held) identified by gameplay tags
 	void AbilityInputTagPressed(FGameplayTag InputTag);
@@ -120,9 +143,8 @@ private:
 	// When true the character should be auto running
 	bool bAutoRunning = false;
 	
-	// Signifies whether object under the cursor is a enemy that should be targeted or if a click should cause auto 
-	// running
-	bool bTargeting = false;
+	// Tracks what type of actor (enemy, non-enemy, or none) is currently under the cursor based on the latest cursor trace
+	ETargetingStatus TargetingStatus = ETargetingStatus::NotTargeting;
 	
 	// Distance from the destination at which the auto running can stop
 	UPROPERTY(EditDefaultsOnly)
