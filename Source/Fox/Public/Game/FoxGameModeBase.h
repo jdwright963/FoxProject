@@ -86,6 +86,9 @@ public:
 	// falling back to the first available PlayerStart if no tagged one is found, or nullptr if no PlayerStarts exist in the level
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 
+	// Called when a character dies to handle death-related logic such as respawning, updating UI, or triggering game over conditions
+	void PlayerDied(ACharacter* DeadCharacter);
+
 protected:
 	// Initializes the game mode by populating the Maps dictionary with the default map entry
 	virtual void BeginPlay() override;

@@ -51,6 +51,10 @@ public:
 	// The tag identifier used to determine which PlayerStart actor to spawn the player at when loading this save slot
 	UPROPERTY()
 	FName PlayerStartTag;
+	
+	// The asset path/name of the map/level associated with this save slot, used to load the correct map when the player loads this save
+	UPROPERTY()
+	FString MapAssetName;
 
 	/** Field Notifies */
 

@@ -79,8 +79,21 @@ void ACheckpoint::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 		// Retrieves the current game mode instance and casts it to AFoxGameModeBase to access custom save functionality
 		if (AFoxGameModeBase* FoxGM = Cast<AFoxGameModeBase>(UGameplayStatics::GetGameMode(this)))
 		{
-			// Triggers the game's save system to persist the current world state including all actor data and checkpoint status
-			FoxGM->SaveWorldState(GetWorld());
+			// Retrieves the UWorld object representing the current game world, providing access to map information and world context
+			const UWorld* World = GetWorld();
+			
+			// Gets the current map/level name from the world, which is used to organize and identify save data for this specific level
+			FString MapName = World->GetMapName();
+			
+			// Removes Unreal's internal streaming level prefix from the map name to get the clean, user-facing level
+			// name for save file organization
+			MapName.RemoveFromStart(World->StreamingLevelsPrefix);
+
+			// Saves the current world state to persistent storage, including this checkpoint's reached status, enemy spawn 
+			// volume states, and all other actors implementing SaveInterface. Parameters: GetWorld() provides the UWorld 
+			// context containing all actors and game state to be saved, while MapName identifies which specific level's 
+			// save data should be written to or updated in the save file.
+			FoxGM->SaveWorldState(GetWorld(), MapName);
 		}
 		
 		// Calls the SaveProgress function on the player character using the Execute_ static function pattern.

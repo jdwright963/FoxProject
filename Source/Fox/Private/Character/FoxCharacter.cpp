@@ -1104,6 +1104,49 @@ int32 AFoxCharacter::GetPlayerLevel_Implementation()
 	return FoxPlayerState->GetPlayerLevel();
 }
 
+void AFoxCharacter::Die(const FVector& DeathImpulse)
+{
+	Super::Die(DeathImpulse);
+	
+	// Declare a timer delegate to schedule delayed execution of player death handling logic after the death animation completes
+	FTimerDelegate DeathTimerDelegate;
+
+	// Bind a lambda function to the delegate that captures 'this' to access the character instance and its member 
+	// variables and functions when the timer fires
+	DeathTimerDelegate.BindLambda([this]()
+	{
+		// Retrieve the game mode and cast it to AFoxGameModeBase to access Fox-specific player death handling functionality
+		AFoxGameModeBase* FoxGM = Cast<AFoxGameModeBase>(UGameplayStatics::GetGameMode(this));
+
+		// Validate that the game mode exists and is of the correct type before attempting to call PlayerDied()
+		if (FoxGM)
+		{
+			// Notify the game mode that the player has died, triggering respawn logic or game over screen
+			FoxGM->PlayerDied(this);
+		}
+	});
+	/**
+	 * Schedule the death timer delegate to execute after DeathTime seconds
+	 * 
+	 * SetTimer parameters:
+	 * - DeathTimer: FTimerHandle that identifies this timer (for cancellation or querying)
+	 * - DeathTimerDelegate: The delegate with the bound lambda function that will execute when the timer fires
+	 * - DeathTime: The delay in seconds before the timer fires (allows death animation to complete)
+	 * - false: Looping parameter
+	 *   * false (current setting): Timer fires once after DeathTime seconds, then stops
+	 *     - Lambda executes once → PlayerDied() called once → respawn or game over triggered
+	 *     - Timer is automatically cleared and won't fire again
+	 *   * true (if we changed it): Timer would fire repeatedly every DeathTime seconds
+	 *     - Lambda would execute every DeathTime seconds → PlayerDied() called repeatedly
+	 *     - Would cause multiple respawn attempts, duplicate game over screens, or other undefined behavior
+	 *     - Timer would continue firing until manually cleared with ClearTimer(DeathTimer)
+	 */
+	GetWorldTimerManager().SetTimer(DeathTimer, DeathTimerDelegate, DeathTime, false);
+
+	// Detach the camera from the character while maintaining its current world position and rotation, preventing it from following the ragdolling corpse
+	TopDownCameraComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+}
+
 void AFoxCharacter::OnRep_Stunned()
 {
 	// Cast the inherited Ability System Component to UFoxAbilitySystemComponent, store it in a variable, and perform a

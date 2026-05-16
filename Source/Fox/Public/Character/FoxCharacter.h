@@ -185,7 +185,30 @@ public:
 	// Function to get the Level of this character. This function is declared in PlayerInterface.h and overriden here
 	virtual int32 GetPlayerLevel_Implementation() override;
 	
+	/**
+	 * Die - Handle player character death
+	 * 
+	 * This function is called when the player character dies, overriding the base implementation from
+	 * AFoxCharacterBase. It handles player-specific death logic by:
+	 * - Creating a delegate (FTimerDelegate) for the death timer callback
+	 * - Binding a lambda function to the delegate that will execute when the timer expires
+	 * - Starting a timer (DeathTimer) that waits for DeathTime seconds before calling the delegate's callback function
+	 * - The lambda callback calls a function on the game mode to notify it of the player's death
+	 * 
+	 * This function is declared in CombatInterface.h and overridden here to provide player-specific
+	 * death behavior that differs from enemy or NPC death handling.
+	 * 
+	 * @param DeathImpulse The directional force vector to apply to the character's physics body on death,
+	 *                     creating a ragdoll effect that launches the body in the damage direction
+	 */
+	virtual void Die(const FVector& DeathImpulse) override;
+	
 	/** end Combat Interface */
+	
+	UPROPERTY(EditDefaultsOnly)
+	float DeathTime = 5.f;
+
+	FTimerHandle DeathTimer;
 	
 	/**
 	 * LevelUpNiagaraComponent - Visual effect component for level-up celebration

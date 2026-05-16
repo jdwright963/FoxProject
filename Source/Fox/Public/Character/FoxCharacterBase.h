@@ -273,6 +273,7 @@ protected:
 	FName TailSocketName;
 	
 	// Variable to track if the character is dead
+	UPROPERTY(BlueprintReadOnly)
 	bool bDead = false;
 	
 	// Callback function that is called by the engine-defined ASC delegate that broadcasts when GameplayTags on the

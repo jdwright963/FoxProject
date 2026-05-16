@@ -7,6 +7,7 @@
 #include "Fox/FoxLogChannels.h"
 #include "Game/FoxGameInstance.h"
 #include "Game/LoadScreenSaveGame.h"
+#include "GameFramework/Character.h"
 #include "GameFramework/PlayerStart.h"
 #include "Interaction/SaveInterface.h"
 #include "Kismet/GameplayStatics.h"
@@ -36,6 +37,9 @@ void AFoxGameModeBase::SaveSlotData(UMVVM_LoadSlot* LoadSlot, int32 SlotIndex)
 
 	// Assign the map name from the load slot view model to track which level/map this save is associated with
 	LoadScreenSaveGame->MapName = LoadSlot->GetMapName();
+	
+	// Store the map asset name from the load slot to preserve the internal asset path used for level loading and map identification
+	LoadScreenSaveGame->MapAssetName = LoadSlot->MapAssetName;
 	
 	// Store the player's current level from the load slot view model to track character progression
 	LoadScreenSaveGame->PlayerLevel = LoadSlot->GetPlayerLevel();
@@ -437,6 +441,19 @@ AActor* AFoxGameModeBase::ChoosePlayerStart_Implementation(AController* Player)
 	}
 	// Return nullptr if no PlayerStart actors were found in the level
 	return nullptr;
+}
+
+void AFoxGameModeBase::PlayerDied(ACharacter* DeadCharacter)
+{
+	// Retrieve the current save slot's data to access the map asset name where the player should respawn after death
+	ULoadScreenSaveGame* SaveGame = RetrieveInGameSaveData();
+
+	// Exit early if the save game data failed to load or is invalid to prevent crashes from null pointer access
+	if (!IsValid(SaveGame)) return;
+
+	// Reload the map stored in the save game using its asset name, effectively respawning the player at their last saved 
+	// location and resetting the level to its saved state. We use DeadCharacter as the world context object
+	UGameplayStatics::OpenLevel(DeadCharacter, FName(SaveGame->MapAssetName));
 }
 
 void AFoxGameModeBase::BeginPlay()

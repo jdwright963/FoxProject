@@ -84,8 +84,13 @@ void UMVVM_LoadScreen::NewSlotButtonPressed(int32 Slot, const FString& EnteredNa
 	// Mark the slot status as Taken to indicate this slot now contains valid save data
 	LoadSlots[Slot]->SlotStatus = Taken;
 	
-	// Assign the default player start tag from the game mode to the load slot to determine which PlayerStart actor the player will spawn at when starting this new game
+	// Assign the default player start tag from the game mode to the load slot to determine which PlayerStart actor the 
+	// player will spawn at when starting this new game
 	LoadSlots[Slot]->PlayerStartTag = FoxGameMode->DefaultPlayerStartTag;
+	
+	// Extract and store the asset name from the default map's soft object path (e.g., "Map_Level1" from the full path) 
+	// to identify which map asset this save slot should load
+	LoadSlots[Slot]->MapAssetName = FoxGameMode->DefaultMap.ToSoftObjectPath().GetAssetName();
 
 	// Save the load slot data to persistent storage via the game mode's save system
 	FoxGameMode->SaveSlotData(LoadSlots[Slot], Slot);
