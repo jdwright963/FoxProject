@@ -238,6 +238,14 @@ public:
 	UFUNCTION()
 	virtual void OnRep_Burned();
 	
+	// Setter function for the CharacterClass property. This is used during deferred spawning to configure the character's
+	// class (Warrior, Elementalist, Ranger, etc.) before the actor is fully initialized. When spawning enemies via
+	// AFoxEnemySpawnPoint::SpawnEnemy(), this function is called between SpawnActorDeferred() and FinishSpawning() to
+	// set the appropriate character class, which then determines which abilities and attributes the character receives
+	// during InitAbilityActorInfo(). This allows spawn points to configure different character classes for the same
+	// enemy actor class.
+	void SetCharacterClass(ECharacterClass InClass) { CharacterClass = InClass; }
+	
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

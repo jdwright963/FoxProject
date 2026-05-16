@@ -82,7 +82,11 @@ public:
 	
 	// Variable that is the lifespan of this enemy's dead body after which it will dissapear
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
-	float LifeSpan = 5.f; 
+	float LifeSpan = 5.f;
+	
+	// Setter function to configure the enemy's level during deferred spawning. This is called after spawning the enemy
+	// actor deferred but before FinishSpawning() to ensure attributes are initialized with the correct level values.
+	void SetLevel(int32 InLevel) { Level = InLevel; }
 	
 	// Variable that is the enemy's combat target. This is used for the motion warping target for rotating to face the target
 	UPROPERTY(BlueprintReadWrite, Category = "Combat")
