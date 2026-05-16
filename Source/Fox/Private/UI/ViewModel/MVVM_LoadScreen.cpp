@@ -61,6 +61,17 @@ void UMVVM_LoadScreen::NewSlotButtonPressed(int32 Slot, const FString& EnteredNa
 	// Retrieve the current game mode and cast it to FoxGameModeBase to access save functionality
 	AFoxGameModeBase* FoxGameMode = Cast<AFoxGameModeBase>(UGameplayStatics::GetGameMode(this));
 	
+	// Validate that the game mode cast succeeded. This will fail if not running in single player or if the game mode is not FoxGameModeBase
+	if (!IsValid(FoxGameMode))
+	{
+		// Display an on-screen debug message to inform the player/developer they must switch to single player mode for save functionality to work
+		GEngine->AddOnScreenDebugMessage(1, 15.f, FColor::Magenta, FString("Please switch to Single Player"));
+		
+		// Early return to prevent null pointer dereference and abort the new slot creation process since we cannot 
+		// access save functionality without a valid FoxGameMode
+		return;
+	}
+	
 	// Assign the default map name from the game mode to the selected load slot, setting which level will be loaded when this save is started
 	LoadSlots[Slot]->SetMapName(FoxGameMode->DefaultMapName);
 
@@ -183,6 +194,10 @@ void UMVVM_LoadScreen::LoadData()
 {
 	// Retrieve the current game mode and cast it to FoxGameModeBase to access save slot data functionality
 	AFoxGameModeBase* FoxGameMode = Cast<AFoxGameModeBase>(UGameplayStatics::GetGameMode(this));
+	
+	// Early return guard: if the cast to FoxGameMode failed (e.g., wrong game mode type or nullptr), abort the load 
+	// operation to prevent null pointer access
+	if (!IsValid(FoxGameMode)) return;
 
 	// Iterate through all registered load slots in the map to load their saved data
 	for (const TTuple<int32, UMVVM_LoadSlot*> LoadSlot : LoadSlots)
