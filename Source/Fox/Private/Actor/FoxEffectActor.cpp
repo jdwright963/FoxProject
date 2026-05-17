@@ -5,6 +5,7 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "Kismet/KismetMathLibrary.h"
 
 // Sets default values
 AFoxEffectActor::AFoxEffectActor()
@@ -15,10 +16,82 @@ AFoxEffectActor::AFoxEffectActor()
 	SetRootComponent(CreateDefaultSubobject<USceneComponent>("SceneRoot"));
 }
 
+void AFoxEffectActor::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	
+	// Accumulate elapsed time to track progress through the sinusoidal movement cycle
+	RunningTime += DeltaTime;
+	
+	// Calculate the period (duration of one complete cycle) of the sine wave used for vertical movement
+	const float SinePeriod = 2 * PI / SinePeriodConstant;
+	
+	// Check if the running time has exceeded one complete sine wave period to prevent time overflow
+	if (RunningTime > SinePeriod)
+	{
+		// Reset the running time to zero to start the next sine wave cycle from the beginning
+		RunningTime = 0.f;
+	}
+	// Update the actor's rotation and vertical sinusoidal position based on the current time and delta time
+	ItemMovement(DeltaTime);
+}
+
+void AFoxEffectActor::ItemMovement(float DeltaTime)
+{
+	// Check if rotation is enabled for this effect actor
+	if (bRotates)
+	{
+		// Calculate the incremental rotation (yaw only) to apply this frame based on the rotation rate and delta time
+		const FRotator DeltaRotation(0.f, DeltaTime * RotationRate, 0.f);
+		
+		// Compose the new rotation by combining the current calculated rotation with the delta rotation
+		CalculatedRotation = UKismetMathLibrary::ComposeRotators(CalculatedRotation, DeltaRotation);
+	}
+	// Check if sinusoidal (up and down) movement is enabled for this effect actor
+	if (bSinusoidalMovement)
+	{
+		// Calculate the current vertical offset using a sine wave based on elapsed time, amplitude, and period constant
+		const float Sine = SineAmplitude * FMath::Sin(RunningTime * SinePeriodConstant);
+		
+		// Update the calculated location by adding the sine wave offset to the Z component of the initial location
+		CalculatedLocation = InitialLocation + FVector(0.f, 0.f, Sine);
+	}
+}
+
 // Called when the game starts or when spawned
 void AFoxEffectActor::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	// Store the actor's initial world location to use as the base position for sinusoidal movement calculations
+	InitialLocation = GetActorLocation();
+	
+	// Initialize the calculated location to the starting position before any movement transformations are applied
+	CalculatedLocation = InitialLocation;
+	
+	// Store the actor's initial world rotation to use as the base rotation for incremental rotation calculations
+	CalculatedRotation = GetActorRotation();
+}
+
+void AFoxEffectActor::StartSinusoidalMovement()
+{
+	// Enable sinusoidal (up and down) movement for this effect actor
+	bSinusoidalMovement = true;
+	
+	// Store the actor's current world location to use as the base position for sinusoidal movement calculations
+	InitialLocation = GetActorLocation();
+	
+	// Initialize the calculated location to the starting position before any movement transformations are applied
+	CalculatedLocation = InitialLocation;
+}
+
+void AFoxEffectActor::StartRotation()
+{
+	// Enable rotation for this effect actor
+	bRotates = true;
+
+	// Store the actor's current world rotation to use as the base rotation for incremental rotation calculations
+	CalculatedRotation = GetActorRotation();
 }
 
 void AFoxEffectActor::ApplyEffectToTarget(AActor* TargetActor, TSubclassOf<UGameplayEffect> GameplayEffectClass)
@@ -191,4 +264,6 @@ void AFoxEffectActor::OnEndOverlap(AActor* TargetActor)
 		}
 	}
 }
+
+
 

@@ -36,10 +36,53 @@ class FOX_API AFoxEffectActor : public AActor
 public:	
 	// Sets default values for this actor's properties
 	AFoxEffectActor();
+	
+	// Called every frame to update actor state, handling rotation and sinusoidal movement animations based on configuration
+	virtual void Tick(float DeltaTime) override;
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	
+	// The calculated location for this actor updated each frame based on sinusoidal movement settings
+	UPROPERTY(BlueprintReadOnly)
+	FVector CalculatedLocation;
+
+	// The calculated rotation for this actor updated each frame based on rotation settings
+	UPROPERTY(BlueprintReadOnly)
+	FRotator CalculatedRotation;
+
+	// Variable to control whether the actor should continuously rotate around its Z-axis during gameplay
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup Movement")
+	bool bRotates = false;
+
+	// The speed at which the actor rotates around its Z-axis, measured in degrees per second
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup Movement")
+	float RotationRate = 45.f;
+
+	// Variable to control whether the actor should perform sinusoidal (wave-like) vertical movement animation
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup Movement")
+	bool bSinusoidalMovement = false;
+
+	// Function to enable sinusoidal movement animation for this actor, causing it to move up and down in a wave pattern
+	UFUNCTION(BlueprintCallable)
+	void StartSinusoidalMovement();
+
+	// Function to enable continuous rotation animation for this actor around its Z-axis
+	UFUNCTION(BlueprintCallable)
+	void StartRotation();
+	
+	// The amplitude (maximum vertical displacement) of the sinusoidal wave movement in Unreal units
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup Movement")
+	float SineAmplitude = 1.f;
+
+	// The period constant that controls the frequency/speed of the sinusoidal oscillation (higher values = faster movement)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup Movement")
+	float SinePeriodConstant = 1.f; 
+
+	// The initial location of the actor stored in BeginPlay, used as the base point for calculating sinusoidal movement offset
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup Movement")
+	FVector InitialLocation;
 	
 	// Applies a gameplay effect to the target actor's ability system component
 	UFUNCTION(BlueprintCallable)
@@ -87,4 +130,12 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Applied Effects")
 	float ActorLevel = 1.f;
+	
+private:
+	
+	// Tracks the total elapsed time in seconds since BeginPlay, used to calculate the sinusoidal wave position for vertical movement animation
+	float RunningTime = 0.f;
+
+	// Helper function called each frame to update the actor's rotation and sinusoidal movement based on configuration settings
+	void ItemMovement(float DeltaTime);
 };
