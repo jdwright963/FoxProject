@@ -125,4 +125,11 @@ protected:
 	// Variable for the AI Controller that will be used by this enemy.
 	UPROPERTY()
 	TObjectPtr<AFoxAIController> FoxAIController;
+	
+	// Blueprint-implementable event that is called when the enemy dies to spawn loot items based on the enemy's loot tier
+	// configuration. The loot system uses randomized spawn chances and quantities defined in the ULootTiers data asset
+	// to determine which items are spawned. This function must be implemented in Blueprint to define the specific loot
+	// spawning behavior for this enemy type
+	UFUNCTION(BlueprintImplementableEvent)
+	void SpawnLoot();
 };

@@ -8,6 +8,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "FoxAbilitySystemLibrary.generated.h"
 
+class ULootTiers;
 class ULoadScreenSaveGame;
 struct FDamageEffectParams;
 class UAbilityInfo;
@@ -102,6 +103,16 @@ public:
 	// Returns: Pointer to the UAbilityInfo data asset configured in AFoxGameModeBase, or nullptr if not found
 	UFUNCTION(BlueprintCallable, Category="FoxAbilitySystemLibrary|CharacterClassDefaults")
 	static UAbilityInfo* GetAbilityInfo(const UObject* WorldContextObject);
+	
+	// Function to retrieve the ULootTiers data asset from the game mode, which contains configuration data for the
+	// loot drop system including loot item classes, spawn chances, maximum number to spawn, and level override settings
+	// This is a utility function that provides centralized access to loot information used by enemy death systems and
+	// reward distribution mechanics to determine what items should be dropped when enemies are defeated
+	// 
+	// WorldContextObject: Required context object to access the world and retrieve the game mode instance
+	// Returns: Pointer to the ULootTiers data asset configured in AFoxGameModeBase, or nullptr if not found
+	UFUNCTION(BlueprintCallable, Category="AuraAbilitySystemLibrary|CharacterClassDefaults", meta = (DefaultToSelf = "WorldContextObject"))
+	static ULootTiers* GetLootTiers(const UObject* WorldContextObject);
 	
 	/*
 	 * Effect Context Getters

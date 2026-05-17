@@ -248,6 +248,12 @@ void AFoxEnemy::Die(const FVector& DeathImpulse)
 	// Checks if the ai controller is valid and sets the Dead blackboard key value to true
 	if (FoxAIController) FoxAIController->GetBlackboardComponent()->SetValueAsBool(FName("Dead"), true);
 	
+	// Spawns loot items/rewards that the enemy drops upon death. This is a BlueprintImplementableEvent, meaning the
+	// actual spawning logic is implemented in the Blueprint child class, allowing designers to customize what loot
+	// each enemy type drops without modifying C++ code. This must be called before Super::Die() to ensure loot spawns
+	// at the enemy's location before any potential physics simulation or actor destruction occurs.
+	SpawnLoot();
+	
 	// Calls the parent class' (FoxCharacterBase) Die function and passes in a DeathImpulse parameter which is a vector representing
 	// the force and direction to apply to the character's ragdoll physics upon death.
 	Super::Die(DeathImpulse);

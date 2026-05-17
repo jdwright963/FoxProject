@@ -628,6 +628,23 @@ UAbilityInfo* UFoxAbilitySystemLibrary::GetAbilityInfo(const UObject* WorldConte
 	return FoxGameMode->AbilityInfo;
 }
 
+ULootTiers* UFoxAbilitySystemLibrary::GetLootTiers(const UObject* WorldContextObject)
+{
+	// Get the game mode from the world context object and cast it to AFoxGameModeBase. This function uses the const
+	// version of Cast since we only need to read from the game mode (access its LootTiers data asset) and don't
+	// need to modify it.
+	const AFoxGameModeBase* FoxGameMode = Cast<AFoxGameModeBase>(UGameplayStatics::GetGameMode(WorldContextObject));
+
+	// Return nullptr early if the cast failed (game mode doesn't exist or isn't of type AFoxGameModeBase).
+	if (FoxGameMode == nullptr) return nullptr;
+
+	// Now that we have a valid game mode, access and return the ULootTiers data asset stored on it. This data
+	// asset contains configuration information for loot spawning including loot item classes, spawn chances,
+	// maximum number to spawn, and level override settings. This function is typically called by systems that
+	// need to spawn loot drops when enemies die or treasure chests are opened.
+	return FoxGameMode->LootTiers;
+}
+
 bool UFoxAbilitySystemLibrary::IsBlockedHit(const FGameplayEffectContextHandle& EffectContextHandle)
 {
 	/*

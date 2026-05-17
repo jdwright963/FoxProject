@@ -6,6 +6,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "FoxGameModeBase.generated.h"
 
+class ULootTiers;
 class ULoadScreenSaveGame;
 class UMVVM_LoadSlot;
 class USaveGame;
@@ -30,6 +31,11 @@ public:
 	// abilities in the game, including their tags, icons, materials, level requirements, and ability classes
 	UPROPERTY(EditDefaultsOnly, Category = "Ability Info")
 	TObjectPtr<UAbilityInfo> AbilityInfo;
+	
+	// Variable to store the ULootTiers data asset. This is set in the editor and contains configuration data for
+	// enemy loot drop systems, including randomized spawn chances and quantities for different item types
+	UPROPERTY(EditDefaultsOnly, Category = "Loot Tiers")
+	TObjectPtr<ULootTiers> LootTiers;
 	
 	// Saves the load slot data (player name, map name, player level, etc.) to disk at the specified slot index
 	void SaveSlotData(UMVVM_LoadSlot* LoadSlot, int32 SlotIndex);

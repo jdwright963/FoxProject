@@ -117,7 +117,7 @@ struct FSavedAbility
 
 	// The current upgrade level of the ability, determining its power and effectiveness with higher levels providing stronger effects
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	int32 AbilityLevel;
+	int32 AbilityLevel = 1;
 };
 
 
