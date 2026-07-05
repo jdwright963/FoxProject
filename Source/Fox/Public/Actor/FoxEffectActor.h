@@ -45,11 +45,11 @@ protected:
 	virtual void BeginPlay() override;
 	
 	// The calculated location for this actor updated each frame based on sinusoidal movement settings
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadWrite)
 	FVector CalculatedLocation;
 
 	// The calculated rotation for this actor updated each frame based on rotation settings
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadWrite)
 	FRotator CalculatedRotation;
 
 	// Variable to control whether the actor should continuously rotate around its Z-axis during gameplay
